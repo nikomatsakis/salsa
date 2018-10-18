@@ -56,7 +56,15 @@ pub trait ParallelDatabase: Database + Send {
 
 pub trait Query<DB: Database>: Debug + Default + Sized + 'static {
     type Key: Clone + Debug + Hash + Eq;
+
+    // FIXME(#56) -- we should be able to move these bounds to the
+    // MemoizationPolicy for derived queries. For input queries we
+    // might want to keep them, or else to remove the logic that tries
+    // to ensure that `set(K, V)` where the new value is equal to the
+    // old value does not increment the revision. It's not clear how
+    // important that is.
     type Value: Clone + Debug + Hash + Eq;
+
     type Storage: plumbing::QueryStorageOps<DB, Self> + Send + Sync;
 }
 
