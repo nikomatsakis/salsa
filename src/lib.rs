@@ -448,6 +448,15 @@ pub unsafe trait Query<DB: Database>: Debug + Default + Sized + 'static {
     fn group_key(key: Self::Key) -> Self::GroupKey;
 }
 
+/// Unique index identifying a particular instance of a query (i.e., the name of
+/// a query plus values for its keys) within the database. This isn't something
+/// users typically interact with except as part of handling cycles, events, or
+/// other "salsa metaprocessing".
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct DatabaseKeyIndex {
+    index: usize,
+}
+
 /// Return value from [the `query` method] on `Database`.
 /// Gives access to various less common operations on queries.
 ///

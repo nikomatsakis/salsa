@@ -17,7 +17,7 @@ pub use crate::derived::MemoizedStorage;
 pub use crate::input::InputStorage;
 pub use crate::interned::InternedStorage;
 pub use crate::interned::LookupInternedStorage;
-pub use crate::revision::Revision;
+pub use crate::{revision::Revision, DatabaseKeyIndex};
 
 #[derive(Clone, Debug)]
 pub struct CycleDetected {
@@ -140,6 +140,9 @@ where
 
     /// "Upcast" a group key into a database key.
     fn database_key(group_key: G::GroupKey) -> Self::DatabaseKey;
+
+    /// Create a database key index from the group key.
+    fn create_database_key_index(db: &Self, key: G::GroupKey) -> DatabaseKeyIndex;
 }
 
 pub trait QueryStorageOps<DB, Q>: Default

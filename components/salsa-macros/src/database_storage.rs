@@ -74,6 +74,16 @@ pub(crate) fn database(args: TokenStream, input: TokenStream) -> TokenStream {
                         kind: __SalsaDatabaseKeyKind::#group_name(group_key),
                     }
                 }
+
+                fn create_database_key_index(
+                    db: &Self,
+                    group_key: #group_key,
+                ) -> salsa::DatabaseKeyIndex {
+                    let runtime = salsa::Database::salsa_runtime(db);
+                    runtime.create_database_key_index(__SalsaDatabaseKey {
+                        kind: __SalsaDatabaseKeyKind::#group_name(group_key),
+                    })
+                }
             }
         });
         // ANCHOR_END:HasQueryGroup

@@ -8,7 +8,7 @@ use crate::plumbing::QueryFunction;
 use crate::plumbing::QueryStorageMassOps;
 use crate::plumbing::QueryStorageOps;
 use crate::runtime::StampedValue;
-use crate::{CycleError, Database, SweepStrategy};
+use crate::{CycleError, Database, DatabaseKeyIndex, SweepStrategy};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use std::marker::PhantomData;
@@ -36,7 +36,8 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     lru_list: Lru<Slot<DB, Q, MP>>,
-    slot_map: RwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q, MP>>>>,
+    database_key_indices: RwLock<FxHashMap<Q::Key, DatabaseKeyIndex>>,
+    slot_map: RwLock<FxHashMap<DatabaseKeyIndex, Arc<Slot<DB, Q, MP>>>>,
     policy: PhantomData<MP>,
 }
 
@@ -99,7 +100,8 @@ where
 {
     fn default() -> Self {
         DerivedStorage {
-            slot_map: RwLock::new(FxHashMap::default()),
+            database_key_indices: Default::default(),
+            slot_map: Default::default(),
             lru_list: Default::default(),
             policy: PhantomData,
         }
@@ -112,14 +114,31 @@ where
     DB: Database + HasQueryGroup<Q::Group>,
     MP: MemoizationPolicy<DB, Q>,
 {
-    fn slot(&self, key: &Q::Key) -> Arc<Slot<DB, Q, MP>> {
-        if let Some(v) = self.slot_map.read().get(key) {
+    fn database_key_index(&self, db: &DB, key: &Q::Key) -> DatabaseKeyIndex {
+        {
+            let database_key_indices = self.database_key_indices.read();
+            if let Some(index) = database_key_indices.get(key) {
+                return *index;
+            }
+        }
+
+        let mut database_key_indices = self.database_key_indices.write();
+        *database_key_indices.entry(key.clone()).or_insert_with(|| {
+            let group_key = Q::group_key(key.clone());
+            DB::create_database_key_index(db, group_key)
+        })
+    }
+
+    fn slot(&self, db: &DB, key: &Q::Key) -> Arc<Slot<DB, Q, MP>> {
+        let database_key_index = self.database_key_index(db, key);
+
+        if let Some(v) = self.slot_map.read().get(&database_key_index) {
             return v.clone();
         }
 
         let mut write = self.slot_map.write();
         write
-            .entry(key.clone())
+            .entry(database_key_index)
             .or_insert_with(|| Arc::new(Slot::new(key.clone())))
             .clone()
     }
@@ -132,7 +151,7 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     fn try_fetch(&self, db: &DB, key: &Q::Key) -> Result<Q::Value, CycleError<DB::DatabaseKey>> {
-        let slot = self.slot(key);
+        let slot = self.slot(db, key);
         let StampedValue {
             value,
             durability,
@@ -150,7 +169,7 @@ where
     }
 
     fn durability(&self, db: &DB, key: &Q::Key) -> Durability {
-        self.slot(key).durability(db)
+        self.slot(db, key).durability(db)
     }
 
     fn entries<C>(&self, _db: &DB) -> C
@@ -198,10 +217,12 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     fn invalidate(&self, db: &mut DB, key: &Q::Key) {
+        let database_key_index = self.database_key_index(db, key);
+
         db.salsa_runtime_mut().with_incremented_revision(|guard| {
             let map_read = self.slot_map.read();
 
-            if let Some(slot) = map_read.get(key) {
+            if let Some(slot) = map_read.get(&database_key_index) {
                 if let Some(durability) = slot.invalidate() {
                     guard.mark_durability_as_changed(durability);
                 }

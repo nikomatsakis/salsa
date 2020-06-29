@@ -3,7 +3,7 @@ use crate::dependency::Dependency;
 use crate::durability::Durability;
 use crate::plumbing::CycleDetected;
 use crate::revision::{AtomicRevision, Revision};
-use crate::{CycleError, Database, Event, EventKind, SweepStrategy};
+use crate::{CycleError, Database, DatabaseKeyIndex, Event, EventKind, SweepStrategy};
 use log::debug;
 use parking_lot::lock_api::{RawRwLock, RawRwLockRecursive};
 use parking_lot::{Mutex, RwLock};
@@ -194,6 +194,14 @@ where
     #[inline]
     fn pending_revision(&self) -> Revision {
         self.shared_state.pending_revision.load()
+    }
+
+    /// Creates and returns a new database key index that refers to `db_key`.
+    pub fn create_database_key_index(&self, db_key: DB::DatabaseKey) -> DatabaseKeyIndex {
+        let mut database_keys = self.shared_state.database_keys.write();
+        let index = database_keys.len();
+        database_keys.push(db_key);
+        DatabaseKeyIndex { index }
     }
 
     /// Check if the current revision is canceled. If this method ever
@@ -589,6 +597,10 @@ struct SharedState<DB: Database> {
     /// The dependency graph tracks which runtimes are blocked on one
     /// another, waiting for queries to terminate.
     dependency_graph: Mutex<DependencyGraph<DB::DatabaseKey>>,
+
+    /// For each `DatabaseKeyIndex` that has been created, stores the
+    /// corresponding `DB::DatabaseKey`.
+    database_keys: RwLock<Vec<DB::DatabaseKey>>,
 }
 
 impl<DB: Database> SharedState<DB> {
@@ -600,6 +612,7 @@ impl<DB: Database> SharedState<DB> {
             revisions: (0..durabilities).map(|_| AtomicRevision::start()).collect(),
             pending_revision: AtomicRevision::start(),
             dependency_graph: Default::default(),
+            database_keys: Default::default(),
         }
     }
 }
