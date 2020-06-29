@@ -3,8 +3,6 @@ use crate::dependency::DatabaseSlot;
 use crate::dependency::Dependency;
 use crate::derived::MemoizationPolicy;
 use crate::durability::Durability;
-use crate::lru::LruIndex;
-use crate::lru::LruNode;
 use crate::plumbing::CycleDetected;
 use crate::plumbing::GetQueryTable;
 use crate::plumbing::HasQueryGroup;
@@ -33,7 +31,6 @@ where
     key: Q::Key,
     state: RwLock<QueryState<DB, Q>>,
     policy: PhantomData<MP>,
-    lru_index: LruIndex,
 }
 
 #[derive(Clone)]
@@ -116,7 +113,6 @@ where
         Self {
             key,
             state: RwLock::new(QueryState::NotComputed),
-            lru_index: LruIndex::default(),
             policy: PhantomData,
         }
     }
@@ -827,17 +823,6 @@ impl<DB: Database> std::fmt::Debug for MemoInputs<DB> {
             MemoInputs::NoInputs => fmt.debug_struct("NoInputs").finish(),
             MemoInputs::Untracked => fmt.debug_struct("Untracked").finish(),
         }
-    }
-}
-
-impl<DB, Q, MP> LruNode for Slot<DB, Q, MP>
-where
-    Q: QueryFunction<DB>,
-    DB: Database + HasQueryGroup<Q::Group>,
-    MP: MemoizationPolicy<DB, Q>,
-{
-    fn lru_index(&self) -> &LruIndex {
-        &self.lru_index
     }
 }
 

@@ -35,7 +35,7 @@ where
     DB: Database + HasQueryGroup<Q::Group>,
     MP: MemoizationPolicy<DB, Q>,
 {
-    lru_list: Lru<Slot<DB, Q, MP>>,
+    lru_list: Lru<DatabaseKeyIndex>,
     database_key_indices: RwLock<FxHashMap<Q::Key, DatabaseKeyIndex>>,
     slot_map: RwLock<FxHashMap<DatabaseKeyIndex, Arc<Slot<DB, Q, MP>>>>,
     policy: PhantomData<MP>,
@@ -102,7 +102,7 @@ where
         DerivedStorage {
             database_key_indices: Default::default(),
             slot_map: Default::default(),
-            lru_list: Default::default(),
+            lru_list: Lru::new(),
             policy: PhantomData,
         }
     }
@@ -151,6 +151,7 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     fn try_fetch(&self, db: &DB, key: &Q::Key) -> Result<Q::Value, CycleError<DB::DatabaseKey>> {
+        let database_key_index = self.database_key_index(db, key);
         let slot = self.slot(db, key);
         let StampedValue {
             value,
@@ -158,8 +159,10 @@ where
             changed_at,
         } = slot.read(db)?;
 
-        if let Some(evicted) = self.lru_list.record_use(&slot) {
-            evicted.evict();
+        if let Some(evicted_index) = self.lru_list.record_use(database_key_index) {
+            if let Some(evicted_slot) = self.slot_map.read().get(&evicted_index) {
+                evicted_slot.evict();
+            }
         }
 
         db.salsa_runtime()

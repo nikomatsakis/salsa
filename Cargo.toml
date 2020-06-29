@@ -11,6 +11,7 @@ readme = "README.md"
 [dependencies]
 crossbeam = "0.7.1"
 indexmap = "1.0.1"
+linked-hash-map = "0.5.2"
 log = "0.4.5"
 parking_lot = "0.10.0"
 rustc-hash = "1.0"
@@ -23,6 +24,5 @@ salsa-macros = { version = "0.14.1", path = "components/salsa-macros" }
 rand_distr = "0.2.1"
 diff = "0.1.0"
 env_logger = "0.5.13"
-linked-hash-map = "0.5.2"
 
 [workspace]
