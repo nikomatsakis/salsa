@@ -7,6 +7,7 @@
 //! re-execute the derived queries and it will try to re-use results
 //! from previous invocations as appropriate.
 
+mod database_key_index_map;
 mod dependency;
 mod derived;
 mod doctest;

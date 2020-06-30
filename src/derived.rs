@@ -8,7 +8,10 @@ use crate::plumbing::QueryFunction;
 use crate::plumbing::QueryStorageMassOps;
 use crate::plumbing::QueryStorageOps;
 use crate::runtime::StampedValue;
-use crate::{CycleError, Database, DatabaseKeyIndex, SweepStrategy};
+use crate::{
+    database_key_index_map::DatabaseKeyIndexMap, CycleError, Database, DatabaseKeyIndex,
+    SweepStrategy,
+};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use std::marker::PhantomData;
@@ -36,7 +39,7 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     lru_list: Lru<DatabaseKeyIndex>,
-    database_key_indices: RwLock<FxHashMap<Q::Key, DatabaseKeyIndex>>,
+    database_key_indices: DatabaseKeyIndexMap<DB, Q>,
     slot_map: RwLock<FxHashMap<DatabaseKeyIndex, Arc<Slot<DB, Q, MP>>>>,
     policy: PhantomData<MP>,
 }
@@ -115,18 +118,7 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     fn database_key_index(&self, db: &DB, key: &Q::Key) -> DatabaseKeyIndex {
-        {
-            let database_key_indices = self.database_key_indices.read();
-            if let Some(index) = database_key_indices.get(key) {
-                return *index;
-            }
-        }
-
-        let mut database_key_indices = self.database_key_indices.write();
-        *database_key_indices.entry(key.clone()).or_insert_with(|| {
-            let group_key = Q::group_key(key.clone());
-            DB::create_database_key_index(db, group_key)
-        })
+        self.database_key_indices.insert(db, key)
     }
 
     fn slot(&self, db: &DB, key: &Q::Key) -> Arc<Slot<DB, Q, MP>> {
