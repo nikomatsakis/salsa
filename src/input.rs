@@ -3,7 +3,7 @@ use crate::dependency::DatabaseSlot;
 use crate::durability::Durability;
 use crate::plumbing::InputQueryStorageOps;
 use crate::plumbing::QueryStorageMassOps;
-use crate::plumbing::QueryStorageOps;
+use crate::plumbing::{HasQueryGroup, QueryStorageOps};
 use crate::revision::Revision;
 use crate::runtime::StampedValue;
 use crate::CycleError;
@@ -11,7 +11,7 @@ use crate::Database;
 use crate::Event;
 use crate::EventKind;
 use crate::Query;
-use crate::SweepStrategy;
+use crate::{database_key_index_map::DatabaseKeyIndexMap, DatabaseKeyIndex, SweepStrategy};
 use log::debug;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
@@ -24,9 +24,10 @@ use std::sync::Arc;
 pub struct InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
-    slots: RwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q>>>>,
+    database_key_indices: DatabaseKeyIndexMap<DB, Q>,
+    slots: RwLock<FxHashMap<DatabaseKeyIndex, Arc<Slot<DB, Q>>>>,
 }
 
 struct Slot<DB, Q>
@@ -41,7 +42,7 @@ where
 impl<DB, Q> std::panic::RefUnwindSafe for InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
     Q::Key: std::panic::RefUnwindSafe,
     Q::Value: std::panic::RefUnwindSafe,
 {
@@ -50,10 +51,11 @@ where
 impl<DB, Q> Default for InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn default() -> Self {
         InputStorage {
+            database_key_indices: Default::default(),
             slots: Default::default(),
         }
     }
@@ -62,21 +64,22 @@ where
 impl<DB, Q> InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
-    fn slot(&self, key: &Q::Key) -> Option<Arc<Slot<DB, Q>>> {
-        self.slots.read().get(key).cloned()
+    fn slot(&self, index: DatabaseKeyIndex) -> Option<Arc<Slot<DB, Q>>> {
+        self.slots.read().get(&index).cloned()
     }
 }
 
 impl<DB, Q> QueryStorageOps<DB, Q> for InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn try_fetch(&self, db: &DB, key: &Q::Key) -> Result<Q::Value, CycleError<DB::DatabaseKey>> {
+        let index = self.database_key_indices.insert(db, key);
         let slot = self
-            .slot(key)
+            .slot(index)
             .unwrap_or_else(|| panic!("no value set for {:?}({:?})", Q::default(), key));
 
         let StampedValue {
@@ -91,8 +94,9 @@ where
         Ok(value)
     }
 
-    fn durability(&self, _db: &DB, key: &Q::Key) -> Durability {
-        match self.slot(key) {
+    fn durability(&self, db: &DB, key: &Q::Key) -> Durability {
+        let index = self.database_key_indices.insert(db, key);
+        match self.slot(index) {
             Some(slot) => slot.stamped_value.read().durability,
             None => panic!("no value set for {:?}({:?})", Q::default(), key),
         }
@@ -118,7 +122,7 @@ where
 impl<DB, Q> QueryStorageMassOps<DB> for InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn sweep(&self, _db: &DB, _strategy: SweepStrategy) {}
 }
@@ -126,7 +130,7 @@ where
 impl<DB, Q> InputQueryStorageOps<DB, Q> for InputStorage<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn set(
         &self,
@@ -166,6 +170,7 @@ where
         // keys, we only need a new revision if the key used to
         // exist. But we may add such methods in the future and this
         // case doesn't generally seem worth optimizing for.
+        let index = self.database_key_indices.insert(db, key);
         db.salsa_runtime_mut().with_incremented_revision(|guard| {
             let mut slots = self.slots.write();
 
@@ -179,7 +184,7 @@ where
                 changed_at: guard.new_revision(),
             };
 
-            match slots.entry(key.clone()) {
+            match slots.entry(index) {
                 Entry::Occupied(entry) => {
                     let mut slot_stamped_value = entry.get().stamped_value.write();
                     guard.mark_durability_as_changed(slot_stamped_value.durability);
@@ -204,7 +209,7 @@ where
 unsafe impl<DB, Q> DatabaseSlot<DB> for Slot<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn maybe_changed_since(&self, _db: &DB, revision: Revision) -> bool {
         debug!(
@@ -227,7 +232,7 @@ where
 fn check_send_sync<DB, Q>()
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
     DB::DatabaseData: Send + Sync,
     Q::Key: Send + Sync,
     Q::Value: Send + Sync,
@@ -243,7 +248,7 @@ where
 fn check_static<DB, Q>()
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
     DB: 'static,
     DB::DatabaseData: 'static,
     Q::Key: 'static,
@@ -256,7 +261,7 @@ where
 impl<DB, Q> std::fmt::Debug for Slot<DB, Q>
 where
     Q: Query<DB>,
-    DB: Database,
+    DB: Database + HasQueryGroup<Q::Group>,
 {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(fmt, "{:?}({:?})", Q::default(), self.key)
