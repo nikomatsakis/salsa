@@ -43,7 +43,7 @@ where
 {
     group_index: u16,
     lru: lru::Lru,
-    key_map: key_to_key_index::KeyToKeyIndex<Q::Key>,
+    key_map: MP::KeyMap,
     memo_map: memo::MemoMap<Q::Value>,
     sync_map: sync::SyncMap,
     policy: PhantomData<MP>,
@@ -64,9 +64,20 @@ pub trait MemoizationPolicy<Q>: Send + Sync
 where
     Q: QueryFunction,
 {
+    type KeyMap: KeyMap<Q::Key>;
+
     fn should_memoize_value(key: &Q::Key) -> bool;
 
     fn memoized_value_eq(old_value: &Q::Value, new_value: &Q::Value) -> bool;
+}
+
+pub trait KeyMap<K>: Default {
+    fn key_index_for_key(&self, key: &K) -> DerivedKeyIndex;
+    fn existing_key_index_for_key<S>(&self, key: &S) -> Option<DerivedKeyIndex>
+    where
+        S: Eq + Hash,
+        K: Borrow<S>;
+    fn key_for_key_index(&self, key_index: DerivedKeyIndex) -> K;
 }
 
 pub enum AlwaysMemoizeValue {}
@@ -75,6 +86,8 @@ where
     Q: QueryFunction,
     Q::Value: Eq,
 {
+    type KeyMap = key_to_key_index::KeyToKeyIndex<Q::Key>;
+
     fn should_memoize_value(_key: &Q::Key) -> bool {
         true
     }
@@ -89,6 +102,8 @@ impl<Q> MemoizationPolicy<Q> for NeverMemoizeValue
 where
     Q: QueryFunction,
 {
+    type KeyMap = key_to_key_index::KeyToKeyIndex<Q::Key>;
+
     fn should_memoize_value(_key: &Q::Key) -> bool {
         false
     }

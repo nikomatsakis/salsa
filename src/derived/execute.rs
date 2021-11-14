@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
+    derived::KeyMap,
     plumbing::QueryFunction,
     runtime::{local_state::ActiveQueryGuard, StampedValue},
     Cycle, Database, Event, EventKind, QueryDb,

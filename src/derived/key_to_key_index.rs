@@ -6,7 +6,7 @@ use crate::hash::FxDashMap;
 
 use super::DerivedKeyIndex;
 
-pub(super) struct KeyToKeyIndex<K> {
+pub struct KeyToKeyIndex<K> {
     index_map: FxDashMap<K, DerivedKeyIndex>,
     key_map: FxDashMap<DerivedKeyIndex, K>,
     indices: AtomicCell<u32>,
@@ -25,11 +25,11 @@ where
     }
 }
 
-impl<K> KeyToKeyIndex<K>
+impl<K> super::KeyMap<K> for KeyToKeyIndex<K>
 where
     K: Hash + Eq + Clone,
 {
-    pub(super) fn key_index_for_key(&self, key: &K) -> DerivedKeyIndex {
+    fn key_index_for_key(&self, key: &K) -> DerivedKeyIndex {
         // Common case: get an existing key
         if let Some(v) = self.index_map.get(key) {
             return *v;
@@ -43,7 +43,7 @@ where
         })
     }
 
-    pub(super) fn existing_key_index_for_key<S>(&self, key: &S) -> Option<DerivedKeyIndex>
+    fn existing_key_index_for_key<S>(&self, key: &S) -> Option<DerivedKeyIndex>
     where
         S: Eq + Hash,
         K: Borrow<S>,
@@ -56,7 +56,7 @@ where
         }
     }
 
-    pub(super) fn key_for_key_index(&self, key_index: DerivedKeyIndex) -> K {
+    fn key_for_key_index(&self, key_index: DerivedKeyIndex) -> K {
         self.key_map.get(&key_index).unwrap().clone()
     }
 }
