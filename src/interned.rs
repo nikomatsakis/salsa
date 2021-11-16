@@ -74,9 +74,6 @@ struct Slot<K> {
     /// set to None if gc'd.
     index: InternId,
 
-    /// DatabaseKeyIndex for this slot.
-    database_key_index: DatabaseKeyIndex,
-
     /// Value that was interned.
     value: K,
 
@@ -128,18 +125,14 @@ where
     Q::Value: InternKey,
 {
     /// If `key` has already been interned, returns its slot. Otherwise, creates a new slot.
-    fn intern_index(&self, db: &<Q as QueryDb<'_>>::DynDb, key: &Q::Key) -> Arc<Slot<Q::Key>> {
+    fn intern_slot(&self, db: &<Q as QueryDb<'_>>::DynDb, key: &Q::Key) -> Arc<Slot<Q::Key>> {
         if let Some(i) = self.intern_check(key) {
             return i;
         }
 
-        let owned_key1 = key.to_owned();
-        let owned_key2 = owned_key1.clone();
-        let revision_now = db.salsa_runtime().current_revision();
-
         let mut tables = self.tables.write();
         let tables = &mut *tables;
-        let entry = match tables.map.entry(owned_key1) {
+        let entry = match tables.map.entry(key.clone()) {
             Entry::Vacant(entry) => entry,
             Entry::Occupied(entry) => {
                 // Somebody inserted this key while we were waiting
@@ -148,28 +141,18 @@ where
                 // have already done so!
                 let index = *entry.get();
                 let slot = &tables.values[index.as_usize()];
-                debug_assert_eq!(owned_key2, slot.value);
+                debug_assert_eq!(key, &slot.value);
                 return slot.clone();
             }
         };
 
-        let create_slot = |index: InternId| {
-            let database_key_index = DatabaseKeyIndex {
-                group_index: self.group_index,
-                query_index: Q::QUERY_INDEX,
-                key_index: index.as_u32(),
-            };
-            Arc::new(Slot {
-                index,
-                database_key_index,
-                value: owned_key2,
-                interned_at: revision_now,
-            })
-        };
-
-        let (slot, index);
-        index = InternId::from(tables.values.len());
-        slot = create_slot(index);
+        let index = InternId::from(tables.values.len());
+        let revision_now = db.salsa_runtime().current_revision();
+        let slot = Arc::new(Slot {
+            index,
+            value: key.clone(),
+            interned_at: revision_now,
+        });
         tables.values.push(slot.clone());
         entry.insert(index);
 
@@ -184,6 +167,14 @@ where
     /// `accessed_at` time if necessary.
     fn lookup_value(&self, index: InternId) -> Arc<Slot<Q::Key>> {
         self.tables.read().slot_for_index(index)
+    }
+
+    fn database_key_index(&self, index: InternId) -> DatabaseKeyIndex {
+        DatabaseKeyIndex {
+            group_index: self.group_index,
+            query_index: Q::QUERY_INDEX,
+            key_index: index.as_u32(),
+        }
     }
 }
 
@@ -230,12 +221,13 @@ where
 
     fn fetch(&self, db: &<Q as QueryDb<'_>>::DynDb, key: &Q::Key) -> Q::Value {
         db.unwind_if_cancelled();
-        let slot = self.intern_index(db, key);
+        let slot = self.intern_slot(db, key);
+        let database_key_index = self.database_key_index(slot.index);
         let changed_at = slot.interned_at;
         let index = slot.index;
         db.salsa_runtime()
             .report_query_read_and_unwind_if_cycle_resulted(
-                slot.database_key_index,
+                database_key_index,
                 INTERN_DURABILITY,
                 changed_at,
             );
@@ -352,9 +344,10 @@ where
         let slot = interned_storage.lookup_value(index);
         let value = slot.value.clone();
         let interned_at = slot.interned_at;
+        let database_key_index = interned_storage.database_key_index(slot.index);
         db.salsa_runtime()
             .report_query_read_and_unwind_if_cycle_resulted(
-                slot.database_key_index,
+                database_key_index,
                 INTERN_DURABILITY,
                 interned_at,
             );
