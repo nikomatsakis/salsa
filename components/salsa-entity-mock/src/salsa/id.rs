@@ -5,4 +5,13 @@ pub struct Id {
     value: NonZeroU32,
 }
 
-pub trait AsId: Sized + Copy {}
+impl Id {
+    pub fn as_u32(self) -> u32 {
+        self.value.get()
+    }
+}
+
+pub trait AsId: Sized + Copy {
+    fn to_id(self) -> Id;
+    fn from_id(id: Id) -> Self;
+}
