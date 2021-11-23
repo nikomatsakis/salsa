@@ -12,6 +12,16 @@ impl Id {
 }
 
 pub trait AsId: Sized + Copy {
-    fn to_id(self) -> Id;
+    fn as_id(self) -> Id;
     fn from_id(id: Id) -> Self;
+}
+
+impl AsId for Id {
+    fn as_id(self) -> Id {
+        self
+    }
+
+    fn from_id(id: Id) -> Self {
+        id
+    }
 }

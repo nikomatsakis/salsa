@@ -3,52 +3,29 @@ use std::{hash::Hash, marker::PhantomData};
 use super::{AsId, Runtime};
 
 #[allow(dead_code)]
-pub struct FunctionIngredients<MP, KM: KeyMap, V: Value> {
-    key_map: KM,
-    phantom: std::marker::PhantomData<(MP, V)>,
+pub struct FunctionIngredients<MP, K: Key, V: Value> {
+    phantom: std::marker::PhantomData<(MP, K, V)>,
 }
 
-pub trait KeyMap: Default {
-    type Key: Key;
-
-    fn key_to_index(&self, key: &Self::Key) -> u32;
-}
-
-pub struct IdMap<K>(PhantomData<K>);
-
-impl<K> Default for IdMap<K> {
-    fn default() -> Self {
-        IdMap(PhantomData)
-    }
-}
-
-impl<K: AsId + Hash + Eq> KeyMap for IdMap<K> {
-    type Key = K;
-
-    fn key_to_index(&self, key: &Self::Key) -> u32 {
-        key.to_id().as_u32()
-    }
-}
-
-pub trait Key: Eq + Hash {}
-impl<T: Eq + Hash> Key for T {}
+pub trait Key: Eq + Hash + AsId {}
+impl<T: Eq + Hash + AsId> Key for T {}
 
 pub trait Value: Clone {}
 impl<T: Clone> Value for T {}
 
-impl<MP, KM, V> FunctionIngredients<MP, KM, V>
+impl<MP, K, V> FunctionIngredients<MP, K, V>
 where
-    KM: KeyMap,
+    K: Key,
     V: Value,
 {
     pub fn fetch<DB>(
         &self,
-        key: KM::Key,
+        key: K,
         runtime: &Runtime,
         db: DB,
-        compute_value: impl FnOnce(KM::Key, DB) -> V,
+        compute_value: impl FnOnce(K, DB) -> V,
     ) -> V {
-        let index = self.key_map.key_to_index(&key);
+        let index = key.as_id().as_u32();
         drop((db, runtime, index, compute_value));
         panic!()
     }

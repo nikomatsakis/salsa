@@ -1,6 +1,8 @@
 use crate::salsa::id::AsId;
-use crate::salsa::plumbing::{HasIngredient, HasJar};
 use crate::salsa::runtime::Runtime;
+use crate::salsa::storage::HasIngredient;
+
+use super::storage::HasJar;
 
 pub trait EntityId: AsId {
     type Jar: HasIngredient<EntityIngredients<Self>>;

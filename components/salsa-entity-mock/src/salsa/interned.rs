@@ -1,6 +1,6 @@
 use crate::salsa::id::AsId;
-use crate::salsa::plumbing::HasJar;
 use crate::salsa::runtime::Runtime;
+use crate::salsa::storage::HasJar;
 
 pub trait InternedId: AsId {
     type Jar: InternedJar<Self>;
@@ -30,23 +30,23 @@ pub trait InternedData: Sized {
 }
 
 pub trait InternedJar<Id: InternedId> {
-    fn ingredients(&self) -> &InternedIngredients<Id>;
+    fn ingredients(&self) -> &InternedIngredients<Id, Id::Data>;
 }
 
 #[allow(dead_code)]
-pub struct InternedIngredients<Id: InternedId> {
-    phantom: std::marker::PhantomData<Id>,
+pub struct InternedIngredients<Id: AsId, Data> {
+    phantom: std::marker::PhantomData<(Id, Data)>,
 }
 
-impl<Id: InternedId> InternedIngredients<Id> {
+impl<Id: AsId, Data> InternedIngredients<Id, Data> {
     #[allow(dead_code)]
-    pub fn intern(&self, runtime: &Runtime, data: Id::Data) -> Id {
+    pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
         let _ = (runtime, data);
         panic!()
     }
 
     #[allow(dead_code)]
-    pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Id::Data {
+    pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
         let _ = (runtime, id);
         panic!()
     }

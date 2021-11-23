@@ -1,19 +1,20 @@
+pub mod database;
 #[doc(hidden)]
 pub mod entity;
 pub mod function;
-mod id;
-mod interned;
+pub mod id;
+pub mod interned;
 pub mod plumbing;
 pub mod prelude;
-mod runtime;
-mod storage;
+pub mod runtime;
+pub mod storage;
 
 pub use self::entity::EntityData;
 pub use self::entity::EntityId;
 pub use self::id::AsId;
 pub use self::id::Id;
-pub use self::plumbing::HasJar;
 pub use self::runtime::Runtime; // FIXME
+pub use self::storage::HasJar;
 
 pub trait Database {}
 

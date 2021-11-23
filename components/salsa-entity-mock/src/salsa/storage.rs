@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::salsa::{plumbing::HasJars, runtime::Runtime, ParallelDatabase};
+use crate::salsa::runtime::Runtime;
+
+use super::ParallelDatabase;
 
 #[allow(dead_code)]
 pub struct Storage<DB: HasJars> {
@@ -34,4 +36,35 @@ where
             runtime: self.runtime.snapshot(),
         }
     }
+}
+
+pub trait HasJars: HasJarsDyn {
+    type Jars;
+
+    fn jars(&self) -> &Self::Jars;
+
+    fn jars_mut(&mut self) -> (&Self::Jars, &mut Runtime);
+
+    // Avoid relying on impl Default for tuple,
+    // because I don't think that works for arbitrary arity.
+    fn empty_jars() -> Self::Jars;
+}
+
+pub trait HasJar<J>: HasJarsDyn {
+    fn jar(&self) -> (&J, &Runtime);
+
+    fn jar_mut(&mut self) -> (&J, &mut Runtime);
+}
+
+// Dyn friendly subset of HasJars
+pub trait HasJarsDyn {
+    fn runtime(&self) -> &Runtime;
+}
+
+pub trait HasIngredient<I> {
+    fn ingredient(&self) -> &I;
+}
+
+pub trait IngredientFor {
+    type Ingredient;
 }
