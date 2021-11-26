@@ -7,44 +7,23 @@ use crate::salsa::storage::HasJar;
 use super::ingredient::Ingredient;
 use super::routes::IngredientIndex;
 
-pub trait InternedId: AsId {
-    type Jar: InternedJar<Self>;
-    type Data;
+pub trait InternedId: AsId {}
+impl<T: AsId> InternedId for T {}
 
-    fn data<'db, DB>(self, db: &'db DB) -> &'db Self::Data
-    where
-        DB: ?Sized + HasJar<Self::Jar>,
-        Self: 'db, // XXX don't love this, but then again, Self is truly going to be 'static
-    {
-        let (jar, runtime) = HasJar::jar(db);
-        InternedJar::ingredients(jar).data(runtime, self)
-    }
-}
-
-pub trait InternedData: Sized {
-    type Jar: InternedJar<Self::Id>;
-    type Id: InternedId<Jar = Self::Jar, Data = Self>;
-
-    fn intern<DB>(self, db: &DB) -> Self::Id
-    where
-        DB: ?Sized + HasJar<Self::Jar>,
-    {
-        let (jar, runtime) = HasJar::jar(db);
-        InternedJar::ingredients(jar).intern(runtime, self)
-    }
-}
-
-pub trait InternedJar<Id: InternedId> {
-    fn ingredients(&self) -> &InternedIngredient<Id, Id::Data>;
-}
+pub trait InternedData: Sized {}
+impl<T> InternedData for T {}
 
 #[allow(dead_code)]
-pub struct InternedIngredient<Id: AsId, Data> {
+pub struct InternedIngredient<Id: InternedId, Data: InternedData> {
     index: IngredientIndex,
     phantom: std::marker::PhantomData<(Id, Data)>,
 }
 
-impl<Id: AsId, Data> InternedIngredient<Id, Data> {
+impl<Id, Data> InternedIngredient<Id, Data>
+where
+    Id: InternedId,
+    Data: InternedData,
+{
     pub fn new(index: IngredientIndex) -> Self {
         Self {
             index,
@@ -67,7 +46,8 @@ impl<Id: AsId, Data> InternedIngredient<Id, Data> {
 
 impl<Id, Data> Ingredient for InternedIngredient<Id, Data>
 where
-    Id: AsId,
+    Id: InternedId,
+    Data: InternedData,
 {
     fn maybe_changed_after(
         &self,

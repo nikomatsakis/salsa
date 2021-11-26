@@ -5,12 +5,13 @@ use crate::salsa::{self};
 // Source:
 //
 // #[salsa::jar]
-// struct Jar0(Entity0, EntityComponent0, my_func);
+// struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
 //
 // trait Jar0Db: salsa::HasJar<Jar0> {}
 
 pub struct Jar0(
     <Entity0 as IngredientsFor>::Ingredients,
+    <Ty0 as IngredientsFor>::Ingredients,
     <EntityComponent0 as IngredientsFor>::Ingredients,
     <my_func as IngredientsFor>::Ingredients,
 );
@@ -21,15 +22,21 @@ impl salsa::storage::HasIngredientsFor<Entity0> for Jar0 {
     }
 }
 
+impl salsa::storage::HasIngredientsFor<Ty0> for Jar0 {
+    fn ingredient(&self) -> &<Ty0 as IngredientsFor>::Ingredients {
+        &self.1
+    }
+}
+
 impl salsa::storage::HasIngredientsFor<EntityComponent0> for Jar0 {
     fn ingredient(&self) -> &<EntityComponent0 as IngredientsFor>::Ingredients {
-        &self.1
+        &self.2
     }
 }
 
 impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
     fn ingredient(&self) -> &<my_func as IngredientsFor>::Ingredients {
-        &self.2
+        &self.3
     }
 }
 
@@ -39,9 +46,10 @@ impl salsa::jar::Jar for Jar0 {
         DB: salsa::HasJar<Self> + salsa::storage::HasJars,
     {
         let i0 = <Entity0 as IngredientsFor>::create_ingredients(ingredients);
-        let i1 = <EntityComponent0 as IngredientsFor>::create_ingredients(ingredients);
-        let i2 = <my_func as IngredientsFor>::create_ingredients(ingredients);
-        Jar0(i0, i1, i2)
+        let i1 = <Ty0 as IngredientsFor>::create_ingredients(ingredients);
+        let i2 = <EntityComponent0 as IngredientsFor>::create_ingredients(ingredients);
+        let i3 = <my_func as IngredientsFor>::create_ingredients(ingredients);
+        Jar0(i0, i1, i2, i3)
     }
 }
 
@@ -54,7 +62,7 @@ trait Jar0Db: salsa::HasJar<Jar0> {}
 //    id: u32
 // }
 
-mod __Entity0 {
+mod __entity0 {
     use super::*;
     #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
     pub struct Entity0(salsa::Id);
@@ -110,25 +118,104 @@ mod __Entity0 {
     pub struct EntityData0 {
         pub(super) id: u32,
     }
-}
-pub(self) use self::__Entity0::Entity0;
-pub(self) use self::__Entity0::EntityData0;
 
-impl EntityData0 {
-    pub fn new<DB: ?Sized>(self, db: &DB) -> Entity0
-    where
-        DB: salsa::HasJar<Jar0>,
-    {
-        let (jar, runtime) = salsa::HasJar::jar(db);
-        return helper(jar, runtime, self);
+    impl EntityData0 {
+        pub fn new<DB: ?Sized>(self, db: &DB) -> Entity0
+        where
+            DB: salsa::HasJar<Jar0>,
+        {
+            let (jar, runtime) = salsa::HasJar::jar(db);
+            return helper(jar, runtime, self);
 
-        fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: EntityData0) -> Entity0 {
-            // just to reduce monomorphization cost
-            let ingredients = <Jar0 as HasIngredientsFor<Entity0>>::ingredient(jar);
-            ingredients.new_entity(runtime, data)
+            fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: EntityData0) -> Entity0 {
+                // just to reduce monomorphization cost
+                let ingredients = <Jar0 as HasIngredientsFor<Entity0>>::ingredient(jar);
+                ingredients.new_entity(runtime, data)
+            }
         }
     }
 }
+pub(self) use self::__entity0::Entity0;
+pub(self) use self::__entity0::EntityData0;
+
+// Source:
+//
+// #[salsa::interned(Ty0 in Jar0)]
+// struct TyData0 {
+//    id: u32
+// }
+
+mod __ty0 {
+    use super::*;
+    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+    pub struct Ty0(salsa::Id);
+
+    impl salsa::AsId for Ty0 {
+        fn as_id(self) -> salsa::Id {
+            self.0
+        }
+
+        fn from_id(id: salsa::Id) -> Self {
+            Ty0(id)
+        }
+    }
+
+    impl Ty0 {
+        pub fn data<DB: ?Sized>(self, db: &DB) -> &TyData0
+        where
+            DB: salsa::HasJar<Jar0>,
+        {
+            let (jar, runtime) = salsa::HasJar::jar(db);
+            return helper(jar, runtime, self);
+
+            fn helper<'j>(jar: &'j Jar0, runtime: &'j salsa::Runtime, id: Ty0) -> &'j TyData0 {
+                let ingredients = <Jar0 as HasIngredientsFor<Ty0>>::ingredient(jar);
+                ingredients.data(runtime, id)
+            }
+        }
+    }
+
+    impl salsa::storage::IngredientsFor for Ty0 {
+        type Jar = Jar0;
+        type Ingredients = salsa::interned::InternedIngredient<Ty0, TyData0>;
+
+        fn create_ingredients<DB>(
+            ingredients: &mut salsa::routes::Ingredients<DB>,
+        ) -> Self::Ingredients
+        where
+            DB: salsa::storage::HasJars,
+            DB: salsa::HasJar<Self::Jar>,
+        {
+            let index = ingredients.push(|db| {
+                let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+                <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
+            });
+            salsa::interned::InternedIngredient::new(index)
+        }
+    }
+
+    pub struct TyData0 {
+        pub(super) id: u32,
+    }
+
+    impl TyData0 {
+        pub fn intern<DB: ?Sized>(self, db: &DB) -> Ty0
+        where
+            DB: salsa::HasJar<Jar0>,
+        {
+            let (jar, runtime) = salsa::HasJar::jar(db);
+            return helper(jar, runtime, self);
+
+            fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: TyData0) -> Ty0 {
+                // just to reduce monomorphization cost
+                let ingredients = <Jar0 as HasIngredientsFor<Ty0>>::ingredient(jar);
+                ingredients.intern(runtime, data)
+            }
+        }
+    }
+}
+pub(self) use self::__ty0::Ty0;
+pub(self) use self::__ty0::TyData0;
 
 // Source:
 //
@@ -243,7 +330,10 @@ fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
 // ----
 
 #[allow(dead_code)]
-fn foo(db: &dyn Jar0Db) -> &EntityData0 {
+fn foo(db: &dyn Jar0Db) {
     let id = EntityData0 { id: 0 }.new(db);
-    id.data(db)
+    id.data(db);
+
+    let ty = TyData0 { id: 0 }.intern(db);
+    ty.data(db);
 }
