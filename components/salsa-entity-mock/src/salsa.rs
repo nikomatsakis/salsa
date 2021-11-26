@@ -3,9 +3,12 @@ pub mod database;
 pub mod entity;
 pub mod function;
 pub mod id;
+pub mod ingredient;
 pub mod interned;
+pub mod jar;
 pub mod plumbing;
 pub mod prelude;
+pub mod routes;
 pub mod runtime;
 pub mod storage;
 
@@ -13,8 +16,10 @@ pub use self::entity::EntityData;
 pub use self::entity::EntityId;
 pub use self::id::AsId;
 pub use self::id::Id;
+pub use self::routes::IngredientIndex;
 pub use self::runtime::Runtime; // FIXME
 pub use self::storage::HasJar;
+pub use self::storage::Storage;
 
 pub trait Database {}
 
@@ -26,7 +31,8 @@ pub trait ParallelDatabase: Database {}
 /// inserting into maps and the like.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct DatabaseKeyIndex {
-    group_index: u16,
-    query_index: u16,
+    ingredient_index: IngredientIndex,
     key_index: u32,
 }
+
+pub struct Revision(u64);

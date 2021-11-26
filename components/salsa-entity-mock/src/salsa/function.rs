@@ -1,9 +1,10 @@
 use std::{hash::Hash, marker::PhantomData};
 
-use super::{AsId, Runtime};
+use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
 
 #[allow(dead_code)]
-pub struct FunctionIngredients<MP, K: Key, V: Value> {
+pub struct FunctionIngredient<MP, K: Key, V: Value> {
+    index: IngredientIndex,
     phantom: std::marker::PhantomData<(MP, K, V)>,
 }
 
@@ -13,11 +14,18 @@ impl<T: Eq + Hash + AsId> Key for T {}
 pub trait Value: Clone {}
 impl<T: Clone> Value for T {}
 
-impl<MP, K, V> FunctionIngredients<MP, K, V>
+impl<MP, K, V> FunctionIngredient<MP, K, V>
 where
     K: Key,
     V: Value,
 {
+    pub fn new(index: IngredientIndex) -> Self {
+        Self {
+            index,
+            phantom: PhantomData,
+        }
+    }
+
     pub fn fetch<DB>(
         &self,
         key: K,
@@ -28,5 +36,19 @@ where
         let index = key.as_id().as_u32();
         drop((db, runtime, index, compute_value));
         panic!()
+    }
+}
+
+impl<MP, K, V> Ingredient for FunctionIngredient<MP, K, V>
+where
+    K: Key,
+    V: Value,
+{
+    fn maybe_changed_after(
+        &self,
+        input: super::DatabaseKeyIndex,
+        revision: super::Revision,
+    ) -> bool {
+        todo!()
     }
 }

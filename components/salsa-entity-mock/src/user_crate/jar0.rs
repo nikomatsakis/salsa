@@ -1,6 +1,6 @@
-use crate::salsa::prelude::*;
-use crate::salsa::storage::IngredientFor;
-use crate::salsa::{self, EntityData};
+use crate::salsa::entity::EntityIngredient;
+use crate::salsa::storage::{HasIngredientsFor, IngredientsFor};
+use crate::salsa::{self};
 
 // Source:
 //
@@ -9,27 +9,39 @@ use crate::salsa::{self, EntityData};
 //
 // trait Jar0Db: salsa::HasJar<Jar0> {}
 
-struct Jar0(
-    <Entity0 as IngredientFor>::Ingredient,
-    <EntityComponent0 as IngredientFor>::Ingredient,
-    <my_func as IngredientFor>::Ingredient,
+pub struct Jar0(
+    <Entity0 as IngredientsFor>::Ingredients,
+    <EntityComponent0 as IngredientsFor>::Ingredients,
+    <my_func as IngredientsFor>::Ingredients,
 );
 
-impl salsa::storage::HasIngredient<<Entity0 as IngredientFor>::Ingredient> for Jar0 {
-    fn ingredient(&self) -> &<Entity0 as IngredientFor>::Ingredient {
+impl salsa::storage::HasIngredientsFor<Entity0> for Jar0 {
+    fn ingredient(&self) -> &<Entity0 as IngredientsFor>::Ingredients {
         &self.0
     }
 }
 
-impl salsa::storage::HasIngredient<<EntityComponent0 as IngredientFor>::Ingredient> for Jar0 {
-    fn ingredient(&self) -> &<EntityComponent0 as IngredientFor>::Ingredient {
+impl salsa::storage::HasIngredientsFor<EntityComponent0> for Jar0 {
+    fn ingredient(&self) -> &<EntityComponent0 as IngredientsFor>::Ingredients {
         &self.1
     }
 }
 
-impl salsa::storage::HasIngredient<<my_func as IngredientFor>::Ingredient> for Jar0 {
-    fn ingredient(&self) -> &<my_func as IngredientFor>::Ingredient {
+impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
+    fn ingredient(&self) -> &<my_func as IngredientsFor>::Ingredients {
         &self.2
+    }
+}
+
+impl salsa::jar::Jar for Jar0 {
+    fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
+    where
+        DB: salsa::HasJar<Self> + salsa::storage::HasJars,
+    {
+        let i0 = <Entity0 as IngredientsFor>::create_ingredients(ingredients);
+        let i1 = <EntityComponent0 as IngredientsFor>::create_ingredients(ingredients);
+        let i2 = <my_func as IngredientsFor>::create_ingredients(ingredients);
+        Jar0(i0, i1, i2)
     }
 }
 
@@ -38,34 +50,84 @@ trait Jar0Db: salsa::HasJar<Jar0> {}
 // Source:
 //
 // #[salsa::Entity(Entity0 in Jar0)]
-// struct EntityData0;
+// struct EntityData0 {
+//    id: u32
+// }
 
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
-struct Entity0(salsa::Id);
-struct EntityData0;
+mod __Entity0 {
+    use super::*;
+    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+    pub struct Entity0(salsa::Id);
 
-impl salsa::AsId for Entity0 {
-    fn as_id(self) -> salsa::Id {
-        self.0
+    impl salsa::AsId for Entity0 {
+        fn as_id(self) -> salsa::Id {
+            self.0
+        }
+
+        fn from_id(id: salsa::Id) -> Self {
+            Entity0(id)
+        }
     }
 
-    fn from_id(id: salsa::Id) -> Self {
-        Entity0(id)
+    impl Entity0 {
+        pub fn data<DB: ?Sized>(self, db: &DB) -> &EntityData0
+        where
+            DB: salsa::HasJar<Jar0>,
+        {
+            let (jar, runtime) = salsa::HasJar::jar(db);
+            return helper(jar, runtime, self);
+
+            fn helper<'j>(
+                jar: &'j Jar0,
+                runtime: &'j salsa::Runtime,
+                id: Entity0,
+            ) -> &'j EntityData0 {
+                let ingredients = <Jar0 as HasIngredientsFor<Entity0>>::ingredient(jar);
+                ingredients.entity_data(runtime, id)
+            }
+        }
+    }
+
+    impl salsa::storage::IngredientsFor for Entity0 {
+        type Jar = Jar0;
+        type Ingredients = salsa::entity::EntityIngredient<Entity0, EntityData0>;
+
+        fn create_ingredients<DB>(
+            ingredients: &mut salsa::routes::Ingredients<DB>,
+        ) -> Self::Ingredients
+        where
+            DB: salsa::storage::HasJars,
+            DB: salsa::HasJar<Self::Jar>,
+        {
+            let index = ingredients.push(|db| {
+                let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+                <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
+            });
+            EntityIngredient::new(index)
+        }
+    }
+
+    pub struct EntityData0 {
+        pub(super) id: u32,
     }
 }
+pub(self) use self::__Entity0::Entity0;
+pub(self) use self::__Entity0::EntityData0;
 
-impl salsa::EntityId for Entity0 {
-    type Jar = Jar0;
-    type Data = EntityData0;
-}
+impl EntityData0 {
+    pub fn new<DB: ?Sized>(self, db: &DB) -> Entity0
+    where
+        DB: salsa::HasJar<Jar0>,
+    {
+        let (jar, runtime) = salsa::HasJar::jar(db);
+        return helper(jar, runtime, self);
 
-impl salsa::EntityData for EntityData0 {
-    type Jar = Jar0;
-    type Id = Entity0;
-}
-
-impl salsa::storage::IngredientFor for Entity0 {
-    type Ingredient = salsa::entity::EntityIngredients<Entity0>;
+        fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: EntityData0) -> Entity0 {
+            // just to reduce monomorphization cost
+            let ingredients = <Jar0 as HasIngredientsFor<Entity0>>::ingredient(jar);
+            ingredients.new_entity(runtime, data)
+        }
+    }
 }
 
 // Source:
@@ -77,12 +139,28 @@ impl salsa::storage::IngredientFor for Entity0 {
 //     }
 // }
 
-struct EntityComponent0 {
-    method: salsa::function::FunctionIngredients<(), Entity0, String>,
+pub struct EntityComponent0 {
+    method: salsa::function::FunctionIngredient<(), Entity0, String>,
 }
 
-impl IngredientFor for EntityComponent0 {
-    type Ingredient = Self;
+impl IngredientsFor for EntityComponent0 {
+    type Jar = Jar0;
+    type Ingredients = Self;
+
+    fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
+    where
+        DB: salsa::storage::HasJars,
+        DB: salsa::HasJar<Self::Jar>,
+    {
+        let index = ingredients.push(|db| {
+            let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+            let ingredients = <Jar0 as HasIngredientsFor<Self>>::ingredient(jar);
+            &ingredients.method
+        });
+        let method = salsa::function::FunctionIngredient::new(index);
+
+        Self { method }
+    }
 }
 
 impl Entity0 {
@@ -99,7 +177,7 @@ impl Entity0 {
 
         let (jar, runtime) = salsa::HasJar::jar(db);
         let component: &EntityComponent0 =
-            <Jar0 as salsa::storage::HasIngredient<EntityComponent0>>::ingredient(jar);
+            <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
         component
             .method
             .fetch(self, runtime, db, <Entity0 as __Secret__>::method)
@@ -113,13 +191,40 @@ impl Entity0 {
 //     format!("Hello, world")
 // }
 
-struct my_func {
-    intern_map: salsa::interned::InternedIngredients<salsa::Id, (u32, u32)>,
-    function: salsa::function::FunctionIngredients<(), salsa::Id, String>,
+#[allow(non_camel_case_types)]
+pub struct my_func {
+    intern_map: salsa::interned::InternedIngredient<salsa::Id, (u32, u32)>,
+    function: salsa::function::FunctionIngredient<(), salsa::Id, String>,
 }
 
-impl IngredientFor for my_func {
-    type Ingredient = Self;
+impl IngredientsFor for my_func {
+    type Ingredients = Self;
+    type Jar = Jar0;
+
+    fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
+    where
+        DB: salsa::storage::HasJars,
+        DB: salsa::HasJar<Self::Jar>,
+    {
+        let index = ingredients.push(|db| {
+            let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+            let ingredients = <Jar0 as HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
+            &ingredients.intern_map
+        });
+        let intern_map = salsa::interned::InternedIngredient::new(index);
+
+        let index = ingredients.push(|db| {
+            let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+            let ingredients = <Jar0 as HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
+            &ingredients.function
+        });
+        let function = salsa::function::FunctionIngredient::new(index);
+
+        my_func {
+            intern_map,
+            function,
+        }
+    }
 }
 
 fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
@@ -128,7 +233,7 @@ fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
     }
 
     let (jar, runtime) = salsa::HasJar::jar(db);
-    let my_func: &my_func = <Jar0 as salsa::storage::HasIngredient<my_func>>::ingredient(jar);
+    let my_func: &my_func = <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
     let id = my_func.intern_map.intern(runtime, (input1, input2));
     my_func
         .function
@@ -139,6 +244,6 @@ fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
 
 #[allow(dead_code)]
 fn foo(db: &dyn Jar0Db) -> &EntityData0 {
-    let id = EntityData0.new(db);
+    let id = EntityData0 { id: 0 }.new(db);
     id.data(db)
 }

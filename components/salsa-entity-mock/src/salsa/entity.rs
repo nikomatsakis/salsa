@@ -1,55 +1,57 @@
+use std::marker::PhantomData;
+
 use crate::salsa::id::AsId;
 use crate::salsa::runtime::Runtime;
-use crate::salsa::storage::HasIngredient;
 
-use super::storage::HasJar;
+use super::{ingredient::Ingredient, DatabaseKeyIndex, IngredientIndex, Revision};
 
-pub trait EntityId: AsId {
-    type Jar: HasIngredient<EntityIngredients<Self>>;
-    type Data: EntityData<Id = Self, Jar = Self::Jar>;
+pub trait EntityId: AsId {}
+impl<T: AsId> EntityId for T {}
 
-    fn data<'db, DB>(self, db: &'db DB) -> &'db Self::Data
-    where
-        DB: ?Sized + HasJar<Self::Jar>,
-        Self: 'db, // XXX don't love this, but then again, Self is truly going to be 'static
-    {
-        let (jar, runtime) = HasJar::jar(db);
-        HasIngredient::ingredient(jar).data(runtime, self)
-    }
-}
-
-pub trait EntityData: Sized {
-    type Jar: HasIngredient<EntityIngredients<Self::Id>>;
-    type Id: EntityId<Data = Self, Jar = Self::Jar>;
-
-    fn new<DB>(self, db: &DB) -> Self::Id
-    where
-        DB: ?Sized + HasJar<Self::Jar>,
-    {
-        let (jar, runtime) = HasJar::jar(db);
-        HasIngredient::ingredient(jar).new(runtime, self)
-    }
-}
-
-pub trait EntityJar<Id: EntityId> {
-    fn ingredients(&self) -> &EntityIngredients<Id>;
-}
+pub trait EntityData: Sized {}
+impl<T> EntityData for T {}
 
 #[allow(dead_code)]
-pub struct EntityIngredients<Id: EntityId> {
-    phantom: std::marker::PhantomData<Id>,
+pub struct EntityIngredient<Id, Data>
+where
+    Id: EntityId,
+    Data: EntityData,
+{
+    index: IngredientIndex,
+    phantom: std::marker::PhantomData<(Id, Data)>,
 }
 
-impl<Id: EntityId> EntityIngredients<Id> {
-    #[allow(dead_code)]
-    pub fn new(&self, runtime: &Runtime, data: Id::Data) -> Id {
-        let _ = (runtime, data);
-        panic!()
+impl<Id, Data> EntityIngredient<Id, Data>
+where
+    Id: EntityId,
+    Data: EntityData,
+{
+    pub fn new(index: IngredientIndex) -> Self {
+        Self {
+            index,
+            phantom: PhantomData,
+        }
     }
 
     #[allow(dead_code)]
-    pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Id::Data {
+    pub fn new_entity(&self, runtime: &Runtime, data: Data) -> Id {
+        let _ = (runtime, data);
+        todo!()
+    }
+
+    #[allow(dead_code)]
+    pub fn entity_data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
         let _ = (runtime, id);
-        panic!()
+        todo!()
+    }
+}
+
+impl<Id, Data> Ingredient for EntityIngredient<Id, Data>
+where
+    Id: EntityId,
+    Data: EntityData,
+{
+    fn maybe_changed_after(&self, key: DatabaseKeyIndex, revision: Revision) -> bool {
+        todo!()
     }
 }

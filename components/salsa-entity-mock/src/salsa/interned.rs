@@ -1,6 +1,11 @@
+use std::marker::PhantomData;
+
 use crate::salsa::id::AsId;
 use crate::salsa::runtime::Runtime;
 use crate::salsa::storage::HasJar;
+
+use super::ingredient::Ingredient;
+use super::routes::IngredientIndex;
 
 pub trait InternedId: AsId {
     type Jar: InternedJar<Self>;
@@ -30,15 +35,23 @@ pub trait InternedData: Sized {
 }
 
 pub trait InternedJar<Id: InternedId> {
-    fn ingredients(&self) -> &InternedIngredients<Id, Id::Data>;
+    fn ingredients(&self) -> &InternedIngredient<Id, Id::Data>;
 }
 
 #[allow(dead_code)]
-pub struct InternedIngredients<Id: AsId, Data> {
+pub struct InternedIngredient<Id: AsId, Data> {
+    index: IngredientIndex,
     phantom: std::marker::PhantomData<(Id, Data)>,
 }
 
-impl<Id: AsId, Data> InternedIngredients<Id, Data> {
+impl<Id: AsId, Data> InternedIngredient<Id, Data> {
+    pub fn new(index: IngredientIndex) -> Self {
+        Self {
+            index,
+            phantom: PhantomData,
+        }
+    }
+
     #[allow(dead_code)]
     pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
         let _ = (runtime, data);
@@ -49,5 +62,18 @@ impl<Id: AsId, Data> InternedIngredients<Id, Data> {
     pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
         let _ = (runtime, id);
         panic!()
+    }
+}
+
+impl<Id, Data> Ingredient for InternedIngredient<Id, Data>
+where
+    Id: AsId,
+{
+    fn maybe_changed_after(
+        &self,
+        input: super::DatabaseKeyIndex,
+        revision: super::Revision,
+    ) -> bool {
+        todo!()
     }
 }
