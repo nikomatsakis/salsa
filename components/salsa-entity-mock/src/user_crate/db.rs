@@ -53,6 +53,14 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
     fn runtime(&self) -> &salsa::Runtime {
         self.storage.runtime()
     }
+
+    fn maybe_changed_after(
+        &self,
+        input: salsa::DatabaseKeyIndex,
+        revision: salsa::Revision,
+    ) -> bool {
+        self.storage.maybe_changed_after(self, input, revision)
+    }
 }
 
 impl salsa::HasJar<Jar0> for TheDatabase {

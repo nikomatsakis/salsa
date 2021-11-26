@@ -4,7 +4,7 @@ use crate::salsa::ingredient::Ingredient;
 use crate::salsa::runtime::Runtime;
 
 use super::routes::{IngredientIndex, Ingredients};
-use super::ParallelDatabase;
+use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
 
 #[allow(dead_code)]
 pub struct Storage<DB: HasJars> {
@@ -58,8 +58,15 @@ where
         (&self.jars, &mut self.runtime)
     }
 
-    pub fn route(&self, index: IngredientIndex) -> &dyn Fn(&DB) -> &dyn Ingredient {
-        self.ingredients.route(index)
+    pub fn maybe_changed_after(
+        &self,
+        db: &DB,
+        input: DatabaseKeyIndex,
+        revision: Revision,
+    ) -> bool {
+        let route = self.ingredients.route(input.ingredient_index);
+        let ingredient = route(db);
+        ingredient.maybe_changed_after(input, revision)
     }
 }
 
@@ -82,6 +89,8 @@ pub trait HasJar<J>: HasJarsDyn {
 // Dyn friendly subset of HasJars
 pub trait HasJarsDyn {
     fn runtime(&self) -> &Runtime;
+
+    fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool;
 }
 
 pub trait HasIngredientsFor<I>
