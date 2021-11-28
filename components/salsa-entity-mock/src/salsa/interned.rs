@@ -42,10 +42,7 @@ where
 
     #[allow(dead_code)]
     pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
-        runtime.add_query_read(DatabaseKeyIndex {
-            ingredient_index: self.ingredient_index,
-            key_index: 0,
-        });
+        runtime.add_query_read(DatabaseKeyIndex::for_table(self.ingredient_index));
 
         if let Some(id) = self.key_map.get(&data) {
             return *id;
@@ -90,6 +87,11 @@ where
         // * Values are only removed or altered when we have `&mut self`
         unsafe { transmute_lifetime(self, &**data) }
     }
+
+    /// Get the ingredient index for this table.
+    pub(crate) fn ingredient_index(&self) -> IngredientIndex {
+        self.ingredient_index
+    }
 }
 
 // Returns `u` but with the lifetime of `t`.
@@ -107,7 +109,7 @@ where
 {
     fn maybe_changed_after(
         &self,
-        input: super::DatabaseKeyIndex,
+        _input: super::DatabaseKeyIndex,
         revision: super::Revision,
     ) -> bool {
         revision < self.reset_at

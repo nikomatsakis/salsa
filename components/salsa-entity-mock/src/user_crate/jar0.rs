@@ -58,6 +58,7 @@ trait Jar0Db: salsa::HasJar<Jar0> {}
 // Source:
 //
 // #[salsa::Entity(Entity0 in Jar0)]
+// #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 // struct EntityData0 {
 //    id: u32
 // }
@@ -115,6 +116,7 @@ mod __entity0 {
         }
     }
 
+    #[derive(Eq, PartialEq, Hash, Debug, Clone)]
     pub struct EntityData0 {
         pub(super) id: u32,
     }

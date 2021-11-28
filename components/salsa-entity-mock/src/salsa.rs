@@ -37,3 +37,17 @@ pub struct DatabaseKeyIndex {
     ingredient_index: IngredientIndex,
     key_index: u32,
 }
+
+impl DatabaseKeyIndex {
+    /// Create a database-key-index for an interning or entity table.
+    /// The `key_index` here is always zero, which deliberately corresponds to
+    /// no particular id or entry. This is because the data in such tables
+    /// remains valid until the table as a whole is reset. Using a single id avoids
+    /// creating tons of dependencies in the dependency listings.
+    pub(super) fn for_table(ingredient_index: IngredientIndex) -> Self {
+        Self {
+            ingredient_index,
+            key_index: 0,
+        }
+    }
+}

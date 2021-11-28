@@ -6,6 +6,7 @@ pub struct Id {
 }
 
 impl Id {
+    #[track_caller]
     pub fn from_u32(x: u32) -> Self {
         Id {
             value: NonZeroU32::new(x).unwrap(),
