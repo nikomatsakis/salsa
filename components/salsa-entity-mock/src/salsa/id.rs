@@ -6,6 +6,12 @@ pub struct Id {
 }
 
 impl Id {
+    pub fn from_u32(x: u32) -> Self {
+        Id {
+            value: NonZeroU32::new(x).unwrap(),
+        }
+    }
+
     pub fn as_u32(self) -> u32 {
         self.value.get()
     }

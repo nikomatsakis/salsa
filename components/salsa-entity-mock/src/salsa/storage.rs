@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use crate::salsa::ingredient::Ingredient;
 use crate::salsa::runtime::Runtime;
 
-use super::routes::{IngredientIndex, Ingredients};
+use super::routes::Ingredients;
 use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
 
 #[allow(dead_code)]

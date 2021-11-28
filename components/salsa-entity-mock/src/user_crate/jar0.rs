@@ -141,6 +141,7 @@ pub(self) use self::__entity0::EntityData0;
 // Source:
 //
 // #[salsa::interned(Ty0 in Jar0)]
+// #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 // struct TyData0 {
 //    id: u32
 // }
@@ -194,6 +195,7 @@ mod __ty0 {
         }
     }
 
+    #[derive(Eq, PartialEq, Hash, Debug, Clone)]
     pub struct TyData0 {
         pub(super) id: u32,
     }
@@ -251,6 +253,7 @@ impl IngredientsFor for EntityComponent0 {
 }
 
 impl Entity0 {
+    #[allow(dead_code)]
     fn method(self, db: &dyn Jar0Db) -> String {
         trait __Secret__ {
             fn method(self, db: &dyn Jar0Db) -> String;
@@ -314,6 +317,7 @@ impl IngredientsFor for my_func {
     }
 }
 
+#[allow(dead_code)]
 fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
     fn __secret__(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
         format!("Hello, world")
