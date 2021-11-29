@@ -1,6 +1,5 @@
-use crate::salsa::entity::EntityIngredient;
-use crate::salsa::storage::{HasIngredientsFor, IngredientsFor};
-use crate::salsa::{self};
+use salsa::entity::EntityIngredient;
+use salsa::storage::{HasIngredientsFor, IngredientsFor};
 
 // Source:
 //
@@ -20,11 +19,19 @@ impl salsa::storage::HasIngredientsFor<Entity0> for Jar0 {
     fn ingredient(&self) -> &<Entity0 as IngredientsFor>::Ingredients {
         &self.0
     }
+
+    fn ingredient_mut(&mut self) -> &mut <Entity0 as IngredientsFor>::Ingredients {
+        &mut self.0
+    }
 }
 
 impl salsa::storage::HasIngredientsFor<Ty0> for Jar0 {
     fn ingredient(&self) -> &<Ty0 as IngredientsFor>::Ingredients {
         &self.1
+    }
+
+    fn ingredient_mut(&mut self) -> &mut <Ty0 as IngredientsFor>::Ingredients {
+        &mut self.1
     }
 }
 
@@ -32,11 +39,19 @@ impl salsa::storage::HasIngredientsFor<EntityComponent0> for Jar0 {
     fn ingredient(&self) -> &<EntityComponent0 as IngredientsFor>::Ingredients {
         &self.2
     }
+
+    fn ingredient_mut(&mut self) -> &mut <EntityComponent0 as IngredientsFor>::Ingredients {
+        &mut self.2
+    }
 }
 
 impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
     fn ingredient(&self) -> &<my_func as IngredientsFor>::Ingredients {
         &self.3
+    }
+
+    fn ingredient_mut(&mut self) -> &mut <my_func as IngredientsFor>::Ingredients {
+        &mut self.3
     }
 }
 
@@ -65,7 +80,7 @@ trait Jar0Db: salsa::HasJar<Jar0> {}
 
 mod __entity0 {
     use super::*;
-    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
     pub struct Entity0(salsa::Id);
 
     impl salsa::AsId for Entity0 {
@@ -108,10 +123,16 @@ mod __entity0 {
             DB: salsa::storage::HasJars,
             DB: salsa::HasJar<Self::Jar>,
         {
-            let index = ingredients.push(|db| {
-                let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
-                <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
-            });
+            let index = ingredients.push_mut(
+                |db| {
+                    let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar(db);
+                    <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
+                },
+                |db| {
+                    let (jar, _) = <DB as salsa::HasJar<Self::Jar>>::jar_mut(db);
+                    <Jar0 as HasIngredientsFor<Self>>::ingredient_mut(jar)
+                },
+            );
             EntityIngredient::new(index)
         }
     }
@@ -150,7 +171,7 @@ pub(self) use self::__entity0::EntityData0;
 
 mod __ty0 {
     use super::*;
-    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
     pub struct Ty0(salsa::Id);
 
     impl salsa::AsId for Ty0 {
@@ -321,7 +342,7 @@ impl IngredientsFor for my_func {
 
 #[allow(dead_code)]
 fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
-    fn __secret__(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
+    fn __secret__(_db: &dyn Jar0Db, _input1: u32, _input2: u32) -> String {
         format!("Hello, world")
     }
 

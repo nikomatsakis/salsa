@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Id {
     value: NonZeroU32,
 }

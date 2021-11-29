@@ -46,8 +46,8 @@ where
 {
     fn maybe_changed_after(
         &self,
-        input: super::DatabaseKeyIndex,
-        revision: super::Revision,
+        _input: super::DatabaseKeyIndex,
+        _revision: super::Revision,
     ) -> bool {
         todo!()
     }

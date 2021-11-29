@@ -1,4 +1,3 @@
-pub mod database;
 #[doc(hidden)]
 pub mod entity;
 pub mod function;
@@ -8,7 +7,6 @@ pub mod ingredient;
 pub mod interned;
 pub mod jar;
 pub mod plumbing;
-pub mod prelude;
 pub mod revision;
 pub mod routes;
 pub mod runtime;
@@ -44,7 +42,7 @@ impl DatabaseKeyIndex {
     /// no particular id or entry. This is because the data in such tables
     /// remains valid until the table as a whole is reset. Using a single id avoids
     /// creating tons of dependencies in the dependency listings.
-    pub(super) fn for_table(ingredient_index: IngredientIndex) -> Self {
+    pub(crate) fn for_table(ingredient_index: IngredientIndex) -> Self {
         Self {
             ingredient_index,
             key_index: 0,

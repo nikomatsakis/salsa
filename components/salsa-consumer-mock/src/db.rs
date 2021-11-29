@@ -1,5 +1,4 @@
 use super::jar0::Jar0;
-use crate::salsa;
 
 // User writes:
 //
@@ -40,7 +39,7 @@ impl salsa::storage::HasJars for TheDatabase {
         self.storage.jars()
     }
 
-    fn jars_mut(&mut self) -> (&Self::Jars, &mut salsa::Runtime) {
+    fn jars_mut(&mut self) -> (&mut Self::Jars, &mut salsa::Runtime) {
         self.storage.jars_mut()
     }
 
@@ -69,8 +68,8 @@ impl salsa::HasJar<Jar0> for TheDatabase {
         (&jars.0, runtime)
     }
 
-    fn jar_mut(&mut self) -> (&Jar0, &mut salsa::Runtime) {
+    fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
         let (jars, runtime) = self.storage.jars_mut();
-        (&jars.0, runtime)
+        (&mut jars.0, runtime)
     }
 }

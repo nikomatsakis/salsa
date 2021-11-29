@@ -35,4 +35,5 @@ insta = "1.8.0"
 members = [
     "components/salsa-macros",
     "components/salsa-entity-mock",
+    "components/salsa-consumer-mock",
 ]

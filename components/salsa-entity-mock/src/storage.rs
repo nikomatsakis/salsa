@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::salsa::runtime::Runtime;
+use crate::runtime::Runtime;
 
 use super::routes::Ingredients;
 use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
@@ -53,8 +53,13 @@ where
         (&self.jars, &self.runtime)
     }
 
-    pub fn jars_mut(&mut self) -> (&DB::Jars, &mut Runtime) {
-        (&self.jars, &mut self.runtime)
+    #[track_caller]
+    pub fn jars_mut(&mut self) -> (&mut DB::Jars, &mut Runtime) {
+        if let Some(jars) = Arc::get_mut(&mut self.jars) {
+            (jars, &mut self.runtime)
+        } else {
+            panic!("jars_mut: jars has multiple refs")
+        }
     }
 
     pub fn maybe_changed_after(
@@ -74,7 +79,7 @@ pub trait HasJars: HasJarsDyn + Sized {
 
     fn jars(&self) -> (&Self::Jars, &Runtime);
 
-    fn jars_mut(&mut self) -> (&Self::Jars, &mut Runtime);
+    fn jars_mut(&mut self) -> (&mut Self::Jars, &mut Runtime);
 
     fn create_jars(ingredients: &mut Ingredients<Self>) -> Self::Jars;
 }
@@ -82,7 +87,7 @@ pub trait HasJars: HasJarsDyn + Sized {
 pub trait HasJar<J>: HasJarsDyn {
     fn jar(&self) -> (&J, &Runtime);
 
-    fn jar_mut(&mut self) -> (&J, &mut Runtime);
+    fn jar_mut(&mut self) -> (&mut J, &mut Runtime);
 }
 
 // Dyn friendly subset of HasJars
@@ -97,6 +102,7 @@ where
     I: IngredientsFor,
 {
     fn ingredient(&self) -> &I::Ingredients;
+    fn ingredient_mut(&mut self) -> &mut I::Ingredients;
 }
 
 pub trait IngredientsFor {
