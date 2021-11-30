@@ -11,8 +11,8 @@ use super::ingredient::Ingredient;
 use super::routes::IngredientIndex;
 use super::{DatabaseKeyIndex, Revision};
 
-pub trait InternedId: AsId + Eq + Hash + Debug {}
-impl<T: AsId + Eq + Hash + Debug> InternedId for T {}
+pub trait InternedId: AsId {}
+impl<T: AsId> InternedId for T {}
 
 pub trait InternedData: Sized + Eq + Hash + Clone {}
 impl<T: Eq + Hash + Clone> InternedData for T {}
@@ -49,7 +49,7 @@ where
 
     #[allow(dead_code)]
     pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
-        runtime.add_query_read(DatabaseKeyIndex::for_table(self.ingredient_index));
+        runtime.report_tracked_read(DatabaseKeyIndex::for_table(self.ingredient_index));
 
         if let Some(id) = self.key_map.get(&data) {
             return *id;
@@ -83,10 +83,7 @@ where
     #[allow(dead_code)]
     #[track_caller]
     pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
-        runtime.add_query_read(DatabaseKeyIndex {
-            ingredient_index: self.ingredient_index,
-            key_index: 0,
-        });
+        runtime.report_tracked_read(DatabaseKeyIndex::for_table(self.ingredient_index));
 
         let data = match self.value_map.get(&id) {
             Some(d) => d,

@@ -2,19 +2,21 @@ use std::{hash::Hash, marker::PhantomData};
 
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
 
+mod memo;
+
 #[allow(dead_code)]
-pub struct FunctionIngredient<MP, K: Key, V: Value> {
+pub struct FunctionIngredient<K: Key, V: Value> {
     index: IngredientIndex,
-    phantom: std::marker::PhantomData<(MP, K, V)>,
+    memo_map: memo::MemoMap<K, V>,
 }
 
-pub trait Key: Eq + Hash + AsId {}
-impl<T: Eq + Hash + AsId> Key for T {}
+pub trait Key: Eq + AsId {}
+impl<T: AsId> Key for T {}
 
 pub trait Value: Clone {}
 impl<T: Clone> Value for T {}
 
-impl<MP, K, V> FunctionIngredient<MP, K, V>
+impl<K, V> FunctionIngredient<K, V>
 where
     K: Key,
     V: Value,
@@ -22,7 +24,7 @@ where
     pub fn new(index: IngredientIndex) -> Self {
         Self {
             index,
-            phantom: PhantomData,
+            memo_map: memo::MemoMap::default(),
         }
     }
 
@@ -37,9 +39,13 @@ where
         drop((db, runtime, index, compute_value));
         panic!()
     }
+
+    pub fn store<DB>(&mut self, key: K, runtime: &mut Runtime, db: DB, value: V) {
+        todo!()
+    }
 }
 
-impl<MP, K, V> Ingredient for FunctionIngredient<MP, K, V>
+impl<K, V> Ingredient for FunctionIngredient<K, V>
 where
     K: Key,
     V: Value,

@@ -41,7 +41,6 @@ where
         }
     }
 
-    #[allow(dead_code)]
     pub fn new_entity(&self, runtime: &Runtime, data: Data) -> Id {
         let data_hash = crate::hash::hash(&data);
         let (query_key, disambiguator) =
@@ -54,7 +53,6 @@ where
         self.interned.intern(runtime, entity_key)
     }
 
-    #[allow(dead_code)]
     pub fn entity_data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
         &self.interned.data(runtime, id).data
     }

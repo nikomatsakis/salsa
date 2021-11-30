@@ -252,7 +252,7 @@ pub(self) use self::__ty0::TyData0;
 // }
 
 pub struct EntityComponent0 {
-    method: salsa::function::FunctionIngredient<(), Entity0, String>,
+    method: salsa::function::FunctionIngredient<Entity0, String>,
 }
 
 impl IngredientsFor for EntityComponent0 {
@@ -295,6 +295,17 @@ impl Entity0 {
             .method
             .fetch(self, runtime, db, <Entity0 as __Secret__>::method)
     }
+
+    fn set_method(self, _db: &dyn Jar0Db, _value: String) {
+        // TODO:
+        //
+        // * Check that this entity was created by current query
+        //   (either by checking creator of entity or by checking
+        //   list of things created by current query, the latter
+        //   may be preferred but either should work in principle)
+        // * Insert into map
+        todo!()
+    }
 }
 
 // Source:
@@ -307,7 +318,7 @@ impl Entity0 {
 #[allow(non_camel_case_types)]
 pub struct my_func {
     intern_map: salsa::interned::InternedIngredient<salsa::Id, (u32, u32)>,
-    function: salsa::function::FunctionIngredient<(), salsa::Id, String>,
+    function: salsa::function::FunctionIngredient<salsa::Id, String>,
 }
 
 impl IngredientsFor for my_func {
@@ -352,6 +363,16 @@ fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
     my_func
         .function
         .fetch(id, runtime, db, |_id, db| __secret__(db, input1, input2))
+}
+
+impl my_func {
+    fn set(db: &mut dyn Jar0Db, input1: u32, input2: u32, value: String) {
+        let (jar, runtime) = salsa::HasJar::jar_mut(db);
+        let my_func: &my_func =
+            <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient_mut(jar);
+        let id = my_func.intern_map.intern(runtime, (input1, input2));
+        my_func.function.store(id, runtime, db, value);
+    }
 }
 
 // ----

@@ -11,3 +11,8 @@ dashmap = "4.0.2"
 rustc-hash = "1.1.0"
 indexmap = "1.7.0"
 hashlink = "0.7.0"
+arc-swap = "1.4.0"
+crossbeam-utils = { version = "0.8", default-features = false }
+log = "0.4.5"
+parking_lot = "0.11.0"
+smallvec = "1.0.0"

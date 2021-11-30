@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use parking_lot::{Condvar, Mutex};
+
 use crate::runtime::Runtime;
 
 use super::routes::Ingredients;
@@ -7,9 +9,14 @@ use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
 
 #[allow(dead_code)]
 pub struct Storage<DB: HasJars> {
-    jars: Arc<DB::Jars>,
+    shared: Arc<Shared<DB>>,
     ingredients: Arc<Ingredients<DB>>,
     runtime: Runtime,
+}
+
+struct Shared<DB: HasJars> {
+    jars: DB::Jars,
+    cvar: Condvar,
 }
 
 trait Jar {}
@@ -22,7 +29,10 @@ where
         let mut ingredients = Ingredients::new();
         let jars = DB::create_jars(&mut ingredients);
         Self {
-            jars: Arc::new(jars),
+            shared: Arc::new(Shared {
+                jars,
+                cvar: Default::default(),
+            }),
             ingredients: Arc::new(ingredients),
             runtime: Runtime::default(),
         }
@@ -39,7 +49,7 @@ where
         DB: ParallelDatabase,
     {
         Self {
-            jars: self.jars.clone(),
+            shared: self.shared.clone(),
             ingredients: self.ingredients.clone(),
             runtime: self.runtime.snapshot(),
         }
@@ -50,15 +60,35 @@ where
     }
 
     pub fn jars(&self) -> (&DB::Jars, &Runtime) {
-        (&self.jars, &self.runtime)
+        (&self.shared.jars, &self.runtime)
     }
 
-    #[track_caller]
+    /// Gets mutable access to the jars. This will trigger a new revision
+    /// and it will also cancel any ongoing work in the current revision.
+    /// Any actual writes that occur to data in a jar should use
+    /// [`Runtime::report_tracked_write`].
     pub fn jars_mut(&mut self) -> (&mut DB::Jars, &mut Runtime) {
-        if let Some(jars) = Arc::get_mut(&mut self.jars) {
-            (jars, &mut self.runtime)
-        } else {
-            panic!("jars_mut: jars has multiple refs")
+        // Have to wait for anyone else using shared to drop:
+        loop {
+            self.runtime.set_cancellation_flag();
+
+            // If we have unique access to the jars, we are done.
+            //
+            // NB: We don't use `if let Some(shared) = Arc::get_mut(...)` here
+            // because of rust-lang/rust#54663.
+            if Arc::get_mut(&mut self.shared).is_some() {
+                let shared = Arc::get_mut(&mut self.shared).unwrap();
+                self.runtime.new_revision();
+                return (&mut shared.jars, &mut self.runtime);
+            }
+
+            // Otherwise, wait until some other storage entites have dropped.
+            // We create a mutex here because the cvar api requires it, but we
+            // don't really need one as the data being protected is actually
+            // the jars above.
+            let mutex = parking_lot::Mutex::new(());
+            let mut guard = mutex.lock();
+            self.shared.cvar.wait(&mut guard);
         }
     }
 
@@ -74,11 +104,22 @@ where
     }
 }
 
+impl<DB> Drop for Shared<DB>
+where
+    DB: HasJars,
+{
+    fn drop(&mut self) {
+        self.cvar.notify_all();
+    }
+}
+
 pub trait HasJars: HasJarsDyn + Sized {
     type Jars;
 
     fn jars(&self) -> (&Self::Jars, &Runtime);
 
+    /// Gets mutable access to the jars. This will trigger a new revision
+    /// and it will also cancel any ongoing work in the current revision.
     fn jars_mut(&mut self) -> (&mut Self::Jars, &mut Runtime);
 
     fn create_jars(ingredients: &mut Ingredients<Self>) -> Self::Jars;

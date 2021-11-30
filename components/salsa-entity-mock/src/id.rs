@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use std::hash::Hash;
 use std::num::NonZeroU32;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -16,9 +18,13 @@ impl Id {
     pub fn as_u32(self) -> u32 {
         self.value.get()
     }
+
+    pub(crate) fn as_NonZeroU32(self) -> NonZeroU32 {
+        self.value
+    }
 }
 
-pub trait AsId: Sized + Copy {
+pub trait AsId: Sized + Copy + Eq + Hash + Debug {
     fn as_id(self) -> Id;
     fn from_id(id: Id) -> Self;
 }
