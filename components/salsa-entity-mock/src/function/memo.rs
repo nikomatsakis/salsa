@@ -24,8 +24,8 @@ impl<K: Key, V> Default for MemoMap<K, V> {
 
 impl<K: Key, V> MemoMap<K, V> {
     /// Inserts the memo for the given key; (atomically) overwrites any previously existing memo.-
-    pub(super) fn insert(&self, key: K, memo: Memo<V>) {
-        self.map.insert(key, ArcSwap::from(Arc::new(memo)));
+    pub(super) fn insert(&self, key: K, memo: Memo<V>) -> Option<ArcSwap<Memo<V>>> {
+        self.map.insert(key, ArcSwap::from(Arc::new(memo)))
     }
 
     /// Removes any existing memo for the given key.

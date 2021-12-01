@@ -76,6 +76,10 @@ impl Runtime {
         self.shared_state.revisions[0].load()
     }
 
+    pub(crate) fn empty_dependencies(&self) -> Arc<[DatabaseKeyIndex]> {
+        self.shared_state.empty_dependencies.clone()
+    }
+
     #[allow(dead_code)]
     pub fn snapshot(&self) -> Self {
         todo!()

@@ -2,7 +2,7 @@ use crate::{
     durability::Durability,
     entity::Disambiguator,
     hash::{FxIndexMap, FxIndexSet},
-    Cycle, DatabaseKeyIndex, Revision,
+    Cycle, DatabaseKeyIndex, Revision, Runtime,
 };
 
 use super::local_state::{QueryInputs, QueryRevisions};
@@ -70,19 +70,17 @@ impl ActiveQuery {
         self.changed_at = self.changed_at.max(revision);
     }
 
-    pub(crate) fn revisions(&self) -> QueryRevisions {
+    pub(crate) fn revisions(&self, runtime: &Runtime) -> QueryRevisions {
         let inputs = match &self.dependencies {
             None => QueryInputs::Untracked,
 
-            Some(dependencies) => {
-                if dependencies.is_empty() {
-                    QueryInputs::NoInputs
+            Some(dependencies) => QueryInputs::Tracked {
+                inputs: if dependencies.is_empty() {
+                    runtime.empty_dependencies()
                 } else {
-                    QueryInputs::Tracked {
-                        inputs: dependencies.iter().copied().collect(),
-                    }
-                }
-            }
+                    dependencies.iter().copied().collect()
+                },
+            },
         };
 
         QueryRevisions {

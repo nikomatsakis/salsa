@@ -1,6 +1,6 @@
 use std::{panic::AssertUnwindSafe, sync::Arc};
 
-use crate::{Database, DatabaseKeyIndex};
+use crate::DatabaseKeyIndex;
 
 /// Captures the participants of a cycle that occurred when executing a query.
 ///

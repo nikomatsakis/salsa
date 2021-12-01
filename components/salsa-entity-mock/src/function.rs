@@ -1,5 +1,13 @@
 use std::{hash::Hash, marker::PhantomData};
 
+use crossbeam::atomic::AtomicCell;
+
+use crate::{
+    durability::Durability,
+    function::memo::Memo,
+    runtime::local_state::{QueryInputs, QueryRevisions},
+};
+
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
 
 mod memo;
@@ -40,8 +48,24 @@ where
         panic!()
     }
 
-    pub fn store<DB>(&mut self, key: K, runtime: &mut Runtime, db: DB, value: V) {
-        todo!()
+    pub fn store(&mut self, key: K, runtime: &mut Runtime, value: V, durability: Durability) {
+        let revision = runtime.current_revision();
+        let memo = Memo {
+            value: Some(value),
+            verified_at: AtomicCell::new(revision),
+            revisions: QueryRevisions {
+                changed_at: revision,
+                durability,
+                inputs: QueryInputs::Tracked {
+                    inputs: runtime.empty_dependencies(),
+                },
+            },
+        };
+
+        if let Some(old_value) = self.memo_map.insert(key, memo) {
+            let durability = old_value.load().revisions.durability;
+            runtime.report_tracked_write(durability);
+        }
     }
 }
 

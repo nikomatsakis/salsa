@@ -58,18 +58,28 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
         input: salsa::DatabaseKeyIndex,
         revision: salsa::Revision,
     ) -> bool {
-        self.storage.maybe_changed_after(self, input, revision)
+        self.storage.maybe_changed_after(input, revision)
     }
 }
 
 impl salsa::HasJar<Jar0> for TheDatabase {
     fn jar(&self) -> (&Jar0, &salsa::Runtime) {
-        let (jars, runtime) = self.storage.jars();
+        <_ as salsa::HasJar<Jar0>>::jar(&self.storage)
+    }
+
+    fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
+        <_ as salsa::HasJar<Jar0>>::jar_mut(&mut self.storage)
+    }
+}
+
+impl salsa::HasJar<Jar0> for salsa::Storage<TheDatabase> {
+    fn jar(&self) -> (&Jar0, &salsa::Runtime) {
+        let (jars, runtime) = self.jars();
         (&jars.0, runtime)
     }
 
     fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
-        let (jars, runtime) = self.storage.jars_mut();
+        let (jars, runtime) = self.jars_mut();
         (&mut jars.0, runtime)
     }
 }

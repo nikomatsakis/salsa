@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Condvar;
 
 use crate::runtime::Runtime;
 
@@ -55,10 +55,6 @@ where
         }
     }
 
-    pub fn runtime(&self) -> &Runtime {
-        &self.runtime
-    }
-
     pub fn jars(&self) -> (&DB::Jars, &Runtime) {
         (&self.shared.jars, &self.runtime)
     }
@@ -68,18 +64,30 @@ where
     /// Any actual writes that occur to data in a jar should use
     /// [`Runtime::report_tracked_write`].
     pub fn jars_mut(&mut self) -> (&mut DB::Jars, &mut Runtime) {
-        // Have to wait for anyone else using shared to drop:
+        self.cancel_other_workers();
+        self.runtime.new_revision();
+
+        let ingredients = self.ingredients.clone();
+        for route in ingredients.mut_routes() {
+            route(self).reset_for_new_revision();
+        }
+
+        let shared = Arc::get_mut(&mut self.shared).unwrap();
+        (&mut shared.jars, &mut self.runtime)
+    }
+
+    /// Sets cancellation flag and blocks until all other workers with access
+    /// to this storage have completed.
+    ///
+    /// This could deadlock if there is a single worker with two handles to the
+    /// same database!
+    fn cancel_other_workers(&mut self) {
         loop {
             self.runtime.set_cancellation_flag();
 
             // If we have unique access to the jars, we are done.
-            //
-            // NB: We don't use `if let Some(shared) = Arc::get_mut(...)` here
-            // because of rust-lang/rust#54663.
             if Arc::get_mut(&mut self.shared).is_some() {
-                let shared = Arc::get_mut(&mut self.shared).unwrap();
-                self.runtime.new_revision();
-                return (&mut shared.jars, &mut self.runtime);
+                return;
             }
 
             // Otherwise, wait until some other storage entites have dropped.
@@ -91,15 +99,16 @@ where
             self.shared.cvar.wait(&mut guard);
         }
     }
+}
 
-    pub fn maybe_changed_after(
-        &self,
-        db: &DB,
-        input: DatabaseKeyIndex,
-        revision: Revision,
-    ) -> bool {
+impl<DB: HasJars> HasJarsDyn for Storage<DB> {
+    fn runtime(&self) -> &Runtime {
+        &self.runtime
+    }
+
+    fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool {
         let route = self.ingredients.route(input.ingredient_index);
-        let ingredient = route(db);
+        let ingredient = route(self);
         ingredient.maybe_changed_after(input, revision)
     }
 }
@@ -153,5 +162,5 @@ pub trait IngredientsFor {
     fn create_ingredients<DB>(ingredients: &mut Ingredients<DB>) -> Self::Ingredients
     where
         DB: HasJars,
-        DB: HasJar<Self::Jar>;
+        Storage<DB>: HasJar<Self::Jar>;
 }
