@@ -90,6 +90,6 @@ where
     Data: EntityData,
 {
     fn reset_for_new_revision(&mut self) {
-        todo!()
+        self.interned.clear_deleted_indices();
     }
 }

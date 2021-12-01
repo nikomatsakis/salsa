@@ -135,6 +135,10 @@ where
             }
         }
     }
+
+    pub(crate) fn clear_deleted_indices(&mut self) {
+        std::mem::take(&mut self.deleted_entries);
+    }
 }
 
 // Returns `u` but with the lifetime of `t`.
