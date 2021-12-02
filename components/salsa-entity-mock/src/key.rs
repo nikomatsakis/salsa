@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{ingredient::Ingredient, Database, Id, IngredientIndex};
+use crate::{Database, Id, IngredientIndex};
 
 /// An integer that uniquely identifies a particular query instance within the
 /// database. Used to track dependencies between queries. Fully ordered and
@@ -29,7 +29,7 @@ impl DatabaseKeyIndex {
         self.ingredient_index
     }
 
-    pub fn debug<DB: ?Sized + Database>(self, db: &DB) -> impl Debug + '_ {
+    pub fn debug<DB: ?Sized + Database>(self, _db: &DB) -> impl Debug + '_ {
         self // FIXME
     }
 

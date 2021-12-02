@@ -300,11 +300,11 @@ impl salsa::function::Configuration for EntityComponent0_method {
     }
 
     fn recover_from_cycle(
-        db: &salsa::function::DynDb<Self>,
-        cycle: &salsa::Cycle,
-        key: Self::Key,
+        _db: &salsa::function::DynDb<Self>,
+        _cycle: &salsa::Cycle,
+        _key: Self::Key,
     ) -> Self::Value {
-        todo!()
+        panic!()
     }
 }
 
@@ -331,7 +331,7 @@ impl IngredientsFor for EntityComponent0 {
 impl Entity0 {
     #[allow(dead_code)]
     fn method(self, db: &dyn Jar0Db) -> String {
-        let (jar, runtime) = salsa::storage::HasJar::jar(db);
+        let (jar, _) = salsa::storage::HasJar::jar(db);
         let component: &EntityComponent0 =
             <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
         component.method.fetch(db, self)
@@ -390,9 +390,9 @@ impl salsa::function::Configuration for my_func {
     }
 
     fn recover_from_cycle(
-        db: &salsa::function::DynDb<Self>,
-        cycle: &salsa::Cycle,
-        key: Self::Key,
+        _db: &salsa::function::DynDb<Self>,
+        _cycle: &salsa::Cycle,
+        _key: Self::Key,
     ) -> Self::Value {
         panic!()
     }

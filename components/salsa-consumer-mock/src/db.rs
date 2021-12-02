@@ -74,9 +74,10 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
 
     fn cycle_recovery_strategy(
         &self,
-        input: salsa::IngredientIndex,
+        ingredient_index: salsa::IngredientIndex,
     ) -> salsa::cycle::CycleRecoveryStrategy {
-        todo!()
+        let ingredient = self.storage.ingredient(ingredient_index);
+        ingredient.cycle_recovery_strategy()
     }
 }
 

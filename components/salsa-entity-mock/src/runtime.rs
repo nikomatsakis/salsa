@@ -1,16 +1,8 @@
-use std::{
-    panic::panic_any,
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::{panic::panic_any, sync::Arc};
 
 use crate::{
-    cycle::CycleRecoveryStrategy,
-    durability::Durability,
-    hash::{FxIndexMap, FxIndexSet},
-    key::ActiveDatabaseKeyIndex,
-    revision::AtomicRevision,
-    runtime::active_query::ActiveQuery,
-    Cancelled, Cycle, Database, Event, EventKind, Revision,
+    cycle::CycleRecoveryStrategy, durability::Durability, key::ActiveDatabaseKeyIndex,
+    runtime::active_query::ActiveQuery, Cancelled, Cycle, Database, Event, EventKind, Revision,
 };
 
 use self::{dependency_graph::DependencyGraph, local_state::ActiveQueryGuard};

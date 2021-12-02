@@ -8,7 +8,7 @@ use crate::{
         StampedValue,
     },
     storage::HasJarsDyn,
-    Database, DatabaseKeyIndex, Revision, Runtime,
+    Database, Revision, Runtime,
 };
 
 use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};

@@ -18,10 +18,6 @@ impl Id {
     pub fn as_u32(self) -> u32 {
         self.value.get()
     }
-
-    pub(crate) fn as_NonZeroU32(self) -> NonZeroU32 {
-        self.value
-    }
 }
 
 pub trait AsId: Sized + Copy + Eq + Hash + Debug {

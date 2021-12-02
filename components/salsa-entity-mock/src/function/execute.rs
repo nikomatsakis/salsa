@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     runtime::{local_state::ActiveQueryGuard, StampedValue},
-    AsId, Cycle, Database, Event, EventKind,
+    Cycle, Database, Event, EventKind,
 };
 
 use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};

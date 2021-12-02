@@ -5,7 +5,6 @@ use parking_lot::Condvar;
 use crate::cycle::CycleRecoveryStrategy;
 use crate::ingredient::Ingredient;
 use crate::jar::Jar;
-use crate::key::ActiveDatabaseKeyIndex;
 use crate::runtime::Runtime;
 use crate::{Database, IngredientIndex};
 

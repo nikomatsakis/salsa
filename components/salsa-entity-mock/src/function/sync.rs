@@ -4,7 +4,7 @@ use crate::{
     hash::FxDashMap,
     key::ActiveDatabaseKeyIndex,
     runtime::{RuntimeId, WaitResult},
-    Database, DatabaseKeyIndex, Id, Runtime,
+    Database, Id, Runtime,
 };
 
 #[derive(Default)]

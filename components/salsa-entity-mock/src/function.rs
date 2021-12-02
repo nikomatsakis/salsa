@@ -7,7 +7,7 @@ use crate::{
     jar::Jar,
     key::ActiveDatabaseKeyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
-    Cycle, Database, DatabaseKeyIndex, DbWithJar, Id, Revision,
+    Cycle, DatabaseKeyIndex, DbWithJar, Id, Revision,
 };
 
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
@@ -47,7 +47,7 @@ pub trait Configuration {
     }
 }
 
-pub type DynDb<C: ?Sized> = <<C as Configuration>::Jar as Jar>::DynDb;
+pub type DynDb<C> = <<C as Configuration>::Jar as Jar>::DynDb;
 
 impl<C> FunctionIngredient<C>
 where

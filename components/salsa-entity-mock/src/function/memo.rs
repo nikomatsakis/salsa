@@ -5,7 +5,7 @@ use crossbeam_utils::atomic::AtomicCell;
 
 use crate::{
     hash::FxDashMap, key::ActiveDatabaseKeyIndex, runtime::local_state::QueryRevisions, AsId,
-    DatabaseKeyIndex, Event, EventKind, Id, Revision, Runtime,
+    Event, EventKind, Revision, Runtime,
 };
 
 pub(super) struct MemoMap<K: AsId, V> {

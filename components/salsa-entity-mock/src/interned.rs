@@ -1,6 +1,5 @@
 use crossbeam::atomic::AtomicCell;
 use crossbeam::queue::SegQueue;
-use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::durability::Durability;
