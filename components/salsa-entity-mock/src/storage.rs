@@ -5,11 +5,12 @@ use parking_lot::Condvar;
 use crate::cycle::CycleRecoveryStrategy;
 use crate::ingredient::Ingredient;
 use crate::jar::Jar;
+use crate::key::DependencyIndex;
 use crate::runtime::Runtime;
 use crate::{Database, IngredientIndex};
 
 use super::routes::Ingredients;
-use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
+use super::{ParallelDatabase, Revision};
 
 #[allow(dead_code)]
 pub struct Storage<DB: HasJars> {
@@ -147,7 +148,7 @@ pub trait HasJar<J: Jar> {
 pub trait HasJarsDyn {
     fn runtime(&self) -> &Runtime;
 
-    fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool;
+    fn maybe_changed_after(&self, input: DependencyIndex, revision: Revision) -> bool;
 
     fn cycle_recovery_strategy(&self, input: IngredientIndex) -> CycleRecoveryStrategy;
 }

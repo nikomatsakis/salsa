@@ -4,8 +4,8 @@ use arc_swap::{ArcSwap, Guard};
 use crossbeam_utils::atomic::AtomicCell;
 
 use crate::{
-    hash::FxDashMap, key::ActiveDatabaseKeyIndex, runtime::local_state::QueryRevisions, AsId,
-    Event, EventKind, Revision, Runtime,
+    hash::FxDashMap, key::DatabaseKeyIndex, runtime::local_state::QueryRevisions, AsId, Event,
+    EventKind, Revision, Runtime,
 };
 
 pub(super) struct MemoMap<K: AsId, V> {
@@ -91,7 +91,7 @@ impl<V> Memo<V> {
         &self,
         db: &dyn crate::Database,
         runtime: &crate::Runtime,
-        database_key_index: ActiveDatabaseKeyIndex,
+        database_key_index: DatabaseKeyIndex,
     ) {
         db.salsa_event(Event {
             runtime_id: runtime.id(),

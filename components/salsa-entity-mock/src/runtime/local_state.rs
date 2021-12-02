@@ -2,10 +2,10 @@ use log::debug;
 
 use crate::durability::Durability;
 use crate::entity::Disambiguator;
-use crate::key::ActiveDatabaseKeyIndex;
+use crate::key::DatabaseKeyIndex;
+use crate::key::DependencyIndex;
 use crate::runtime::Revision;
 use crate::Cycle;
-use crate::DatabaseKeyIndex;
 use crate::Runtime;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -57,7 +57,7 @@ impl QueryRevisions {
 #[derive(Debug, Clone)]
 pub(crate) enum QueryInputs {
     /// Inputs are fully known
-    Tracked { inputs: Arc<[DatabaseKeyIndex]> },
+    Tracked { inputs: Arc<[DependencyIndex]> },
 
     /// Unknown quantity of inputs
     Untracked,
@@ -73,10 +73,7 @@ impl Default for LocalState {
 
 impl LocalState {
     #[inline]
-    pub(super) fn push_query(
-        &self,
-        database_key_index: ActiveDatabaseKeyIndex,
-    ) -> ActiveQueryGuard<'_> {
+    pub(super) fn push_query(&self, database_key_index: DatabaseKeyIndex) -> ActiveQueryGuard<'_> {
         let mut query_stack = self.query_stack.borrow_mut();
         let query_stack = query_stack.as_mut().expect("local stack taken");
         query_stack.push(ActiveQuery::new(database_key_index));
@@ -99,7 +96,7 @@ impl LocalState {
         self.with_query_stack(|stack| !stack.is_empty())
     }
 
-    pub(super) fn active_query(&self) -> Option<ActiveDatabaseKeyIndex> {
+    pub(super) fn active_query(&self) -> Option<DatabaseKeyIndex> {
         self.with_query_stack(|stack| {
             stack
                 .last()
@@ -109,7 +106,7 @@ impl LocalState {
 
     pub(super) fn report_tracked_read(
         &self,
-        input: DatabaseKeyIndex,
+        input: DependencyIndex,
         durability: Durability,
         changed_at: Revision,
     ) {
@@ -186,7 +183,7 @@ impl LocalState {
     }
 
     #[track_caller]
-    pub(crate) fn disambiguate(&self, data_hash: u64) -> (ActiveDatabaseKeyIndex, Disambiguator) {
+    pub(crate) fn disambiguate(&self, data_hash: u64) -> (DatabaseKeyIndex, Disambiguator) {
         assert!(self.query_in_progress());
         self.with_query_stack(|stack| {
             let top_query = stack.last_mut().unwrap();
@@ -205,7 +202,7 @@ impl std::panic::RefUnwindSafe for LocalState {}
 pub(crate) struct ActiveQueryGuard<'me> {
     local_state: &'me LocalState,
     push_len: usize,
-    pub(crate) database_key_index: ActiveDatabaseKeyIndex,
+    pub(crate) database_key_index: DatabaseKeyIndex,
 }
 
 impl ActiveQueryGuard<'_> {

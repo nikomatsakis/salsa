@@ -4,12 +4,13 @@ use std::hash::Hash;
 
 use crate::durability::Durability;
 use crate::id::AsId;
+use crate::key::DependencyIndex;
 use crate::runtime::Runtime;
 
 use super::hash::FxDashMap;
 use super::ingredient::Ingredient;
 use super::routes::IngredientIndex;
-use super::{DatabaseKeyIndex, Revision};
+use super::Revision;
 
 pub trait InternedId: AsId {}
 impl<T: AsId> InternedId for T {}
@@ -50,7 +51,7 @@ where
     #[allow(dead_code)]
     pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
         runtime.report_tracked_read(
-            DatabaseKeyIndex::for_table(self.ingredient_index),
+            DependencyIndex::for_table(self.ingredient_index),
             Durability::MAX,
             self.reset_at,
         );
@@ -92,7 +93,7 @@ where
     #[track_caller]
     pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
         runtime.report_tracked_read(
-            DatabaseKeyIndex::for_table(self.ingredient_index),
+            DependencyIndex::for_table(self.ingredient_index),
             Durability::MAX,
             self.reset_at,
         );
@@ -166,12 +167,7 @@ where
     Id: InternedId,
     Data: InternedData,
 {
-    fn maybe_changed_after(
-        &self,
-        _db: &DB,
-        _input: super::DatabaseKeyIndex,
-        revision: super::Revision,
-    ) -> bool {
+    fn maybe_changed_after(&self, _db: &DB, _input: DependencyIndex, revision: Revision) -> bool {
         revision < self.reset_at
     }
 

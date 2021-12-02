@@ -5,9 +5,9 @@ use crate::{
     durability::Durability,
     function::memo::Memo,
     jar::Jar,
-    key::ActiveDatabaseKeyIndex,
+    key::{DatabaseKeyIndex, DependencyIndex},
     runtime::local_state::{QueryInputs, QueryRevisions},
-    Cycle, DatabaseKeyIndex, DbWithJar, Id, Revision,
+    Cycle, DbWithJar, Id, Revision,
 };
 
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
@@ -65,13 +65,6 @@ where
     fn database_key_index(&self, k: C::Key) -> DatabaseKeyIndex {
         DatabaseKeyIndex {
             ingredient_index: self.index,
-            key_index: Some(k.as_id()),
-        }
-    }
-
-    fn active_database_key_index(&self, k: C::Key) -> ActiveDatabaseKeyIndex {
-        ActiveDatabaseKeyIndex {
-            ingredient_index: self.index,
             key_index: k.as_id(),
         }
     }
@@ -108,7 +101,7 @@ where
     DB: ?Sized + DbWithJar<C::Jar>,
     C: Configuration,
 {
-    fn maybe_changed_after(&self, db: &DB, input: DatabaseKeyIndex, revision: Revision) -> bool {
+    fn maybe_changed_after(&self, db: &DB, input: DependencyIndex, revision: Revision) -> bool {
         let key = C::key_from_id(input.key_index.unwrap());
         let db = db.as_jar_db();
         self.maybe_changed_after(db, key, revision)

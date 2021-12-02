@@ -7,12 +7,12 @@ use crate::{Database, Id, IngredientIndex};
 /// equatable but those orderings are arbitrary, and meant to be used only for
 /// inserting into maps and the like.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct DatabaseKeyIndex {
+pub struct DependencyIndex {
     pub(crate) ingredient_index: IngredientIndex,
     pub(crate) key_index: Option<Id>,
 }
 
-impl DatabaseKeyIndex {
+impl DependencyIndex {
     /// Create a database-key-index for an interning or entity table.
     /// The `key_index` here is always zero, which deliberately corresponds to
     /// no particular id or entry. This is because the data in such tables
@@ -33,7 +33,7 @@ impl DatabaseKeyIndex {
         self // FIXME
     }
 
-    pub(crate) fn is(self, a: ActiveDatabaseKeyIndex) -> bool {
+    pub(crate) fn is(self, a: DatabaseKeyIndex) -> bool {
         self.ingredient_index == a.ingredient_index && self.key_index == Some(a.key_index)
     }
 }
@@ -42,20 +42,20 @@ impl DatabaseKeyIndex {
 /// that is actively executing. In that case, the `key_index` cannot be
 /// None.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct ActiveDatabaseKeyIndex {
+pub struct DatabaseKeyIndex {
     pub(crate) ingredient_index: IngredientIndex,
     pub(crate) key_index: Id,
 }
 
-impl ActiveDatabaseKeyIndex {
+impl DatabaseKeyIndex {
     pub fn debug<DB: ?Sized + Database>(self, db: &DB) -> impl Debug + '_ {
-        let i: DatabaseKeyIndex = self.into();
+        let i: DependencyIndex = self.into();
         i.debug(db)
     }
 }
 
-impl From<ActiveDatabaseKeyIndex> for DatabaseKeyIndex {
-    fn from(value: ActiveDatabaseKeyIndex) -> Self {
+impl From<DatabaseKeyIndex> for DependencyIndex {
+    fn from(value: DatabaseKeyIndex) -> Self {
         Self {
             ingredient_index: value.ingredient_index,
             key_index: Some(value.key_index),
@@ -63,10 +63,10 @@ impl From<ActiveDatabaseKeyIndex> for DatabaseKeyIndex {
     }
 }
 
-impl TryFrom<DatabaseKeyIndex> for ActiveDatabaseKeyIndex {
+impl TryFrom<DependencyIndex> for DatabaseKeyIndex {
     type Error = ();
 
-    fn try_from(value: DatabaseKeyIndex) -> Result<Self, Self::Error> {
+    fn try_from(value: DependencyIndex) -> Result<Self, Self::Error> {
         let key_index = value.key_index.ok_or(())?;
         Ok(Self {
             ingredient_index: value.ingredient_index,

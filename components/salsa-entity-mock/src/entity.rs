@@ -2,9 +2,9 @@ use crate::{
     cycle::CycleRecoveryStrategy,
     ingredient::{Ingredient, MutIngredient},
     interned::{InternedData, InternedId, InternedIngredient},
-    key::ActiveDatabaseKeyIndex,
+    key::{DatabaseKeyIndex, DependencyIndex},
     runtime::Runtime,
-    DatabaseKeyIndex, IngredientIndex, Revision,
+    IngredientIndex, Revision,
 };
 
 pub trait EntityId: InternedId {}
@@ -24,7 +24,7 @@ where
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Copy, Clone)]
 struct EntityKey<Data> {
-    query_key: ActiveDatabaseKeyIndex,
+    query_key: DatabaseKeyIndex,
     disambiguator: Disambiguator,
     data: Data,
 }
@@ -84,7 +84,7 @@ where
     Id: EntityId,
     Data: EntityData,
 {
-    fn maybe_changed_after(&self, db: &DB, input: DatabaseKeyIndex, revision: Revision) -> bool {
+    fn maybe_changed_after(&self, db: &DB, input: DependencyIndex, revision: Revision) -> bool {
         self.interned.maybe_changed_after(db, input, revision)
     }
 

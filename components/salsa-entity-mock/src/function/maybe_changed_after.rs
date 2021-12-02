@@ -2,7 +2,7 @@ use arc_swap::Guard;
 
 use crate::{
     database::AsSalsaDatabase,
-    key::ActiveDatabaseKeyIndex,
+    key::DatabaseKeyIndex,
     runtime::{
         local_state::{ActiveQueryGuard, QueryInputs},
         StampedValue,
@@ -27,7 +27,7 @@ where
         runtime.unwind_if_revision_cancelled(db);
 
         loop {
-            let database_key_index = self.active_database_key_index(key);
+            let database_key_index = self.database_key_index(key);
 
             log::debug!(
                 "{:?}: maybe_changed_after(revision = {:?})",
@@ -61,7 +61,7 @@ where
         revision: Revision,
     ) -> Option<bool> {
         let runtime = db.salsa_runtime();
-        let database_key_index = self.active_database_key_index(key_index);
+        let database_key_index = self.database_key_index(key_index);
 
         let _claim_guard = self
             .sync_map
@@ -107,7 +107,7 @@ where
         &self,
         db: &DynDb<C>,
         runtime: &Runtime,
-        database_key_index: ActiveDatabaseKeyIndex,
+        database_key_index: DatabaseKeyIndex,
         memo: &Memo<C::Value>,
     ) -> bool {
         let verified_at = memo.verified_at.load();

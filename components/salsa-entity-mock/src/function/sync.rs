@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{
     hash::FxDashMap,
-    key::ActiveDatabaseKeyIndex,
+    key::DatabaseKeyIndex,
     runtime::{RuntimeId, WaitResult},
     Database, Id, Runtime,
 };
@@ -24,7 +24,7 @@ impl SyncMap {
     pub(super) fn claim<'me>(
         &'me self,
         db: &'me dyn Database,
-        database_key_index: ActiveDatabaseKeyIndex,
+        database_key_index: DatabaseKeyIndex,
     ) -> Option<ClaimGuard<'me>> {
         let runtime = db.salsa_runtime();
         match self.sync_map.entry(database_key_index.key_index) {
@@ -59,7 +59,7 @@ impl SyncMap {
 /// released when this value is dropped.
 #[must_use]
 pub(super) struct ClaimGuard<'me> {
-    database_key: ActiveDatabaseKeyIndex,
+    database_key: DatabaseKeyIndex,
     runtime: &'me Runtime,
     sync_map: &'me FxDashMap<Id, SyncState>,
 }

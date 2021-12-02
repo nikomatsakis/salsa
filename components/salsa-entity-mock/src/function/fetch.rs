@@ -28,7 +28,7 @@ where
         }
 
         db.salsa_runtime().report_tracked_read(
-            self.database_key_index(key),
+            self.database_key_index(key).into(),
             durability,
             changed_at,
         );
@@ -51,8 +51,7 @@ where
         if let Some(memo) = &memo_guard {
             if let Some(value) = &memo.value {
                 let runtime = db.salsa_runtime();
-                if self.shallow_verify_memo(db, runtime, self.active_database_key_index(key), memo)
-                {
+                if self.shallow_verify_memo(db, runtime, self.database_key_index(key), memo) {
                     return Some(memo.revisions.stamped_value(value.clone()));
                 }
             }
@@ -62,7 +61,7 @@ where
 
     fn fetch_cold(&self, db: &DynDb<C>, key: C::Key) -> Option<StampedValue<C::Value>> {
         let runtime = db.salsa_runtime();
-        let database_key_index = self.active_database_key_index(key);
+        let database_key_index = self.database_key_index(key);
 
         // Try to claim this query: if someone else has claimed it already, go back and start again.
         let _claim_guard = self

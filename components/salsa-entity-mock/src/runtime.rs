@@ -1,13 +1,16 @@
 use std::{panic::panic_any, sync::Arc};
 
 use crate::{
-    cycle::CycleRecoveryStrategy, durability::Durability, key::ActiveDatabaseKeyIndex,
-    runtime::active_query::ActiveQuery, Cancelled, Cycle, Database, Event, EventKind, Revision,
+    cycle::CycleRecoveryStrategy,
+    durability::Durability,
+    key::{DatabaseKeyIndex, DependencyIndex},
+    runtime::active_query::ActiveQuery,
+    Cancelled, Cycle, Database, Event, EventKind, Revision,
 };
 
 use self::{dependency_graph::DependencyGraph, local_state::ActiveQueryGuard};
 
-use super::{entity::Disambiguator, DatabaseKeyIndex, IngredientIndex};
+use super::{entity::Disambiguator, IngredientIndex};
 
 mod active_query;
 mod dependency_graph;
@@ -76,7 +79,7 @@ impl Runtime {
         self.shared_state.revisions[0].load()
     }
 
-    pub(crate) fn empty_dependencies(&self) -> Arc<[DatabaseKeyIndex]> {
+    pub(crate) fn empty_dependencies(&self) -> Arc<[DependencyIndex]> {
         self.shared_state.empty_dependencies.clone()
     }
 
@@ -87,7 +90,7 @@ impl Runtime {
 
     pub(crate) fn report_tracked_read(
         &self,
-        key_index: DatabaseKeyIndex,
+        key_index: DependencyIndex,
         durability: Durability,
         changed_at: Revision,
     ) {
@@ -126,9 +129,9 @@ impl Runtime {
         entity_index: IngredientIndex,
         reset_at: Revision,
         data_hash: u64,
-    ) -> (ActiveDatabaseKeyIndex, Disambiguator) {
+    ) -> (DatabaseKeyIndex, Disambiguator) {
         self.report_tracked_read(
-            DatabaseKeyIndex::for_table(entity_index),
+            DependencyIndex::for_table(entity_index),
             Durability::MAX,
             reset_at,
         );
@@ -196,10 +199,7 @@ impl Runtime {
     }
 
     #[inline]
-    pub(crate) fn push_query(
-        &self,
-        database_key_index: ActiveDatabaseKeyIndex,
-    ) -> ActiveQueryGuard<'_> {
+    pub(crate) fn push_query(&self, database_key_index: DatabaseKeyIndex) -> ActiveQueryGuard<'_> {
         self.local_state.push_query(database_key_index)
     }
 
@@ -228,7 +228,7 @@ impl Runtime {
     pub(crate) fn block_on_or_unwind<QueryMutexGuard>(
         &self,
         db: &dyn Database,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         other_id: RuntimeId,
         query_mutex_guard: QueryMutexGuard,
     ) {
@@ -287,7 +287,7 @@ impl Runtime {
         &self,
         db: &dyn Database,
         dg: &mut DependencyGraph,
-        database_key_index: ActiveDatabaseKeyIndex,
+        database_key_index: DatabaseKeyIndex,
         to_id: RuntimeId,
     ) {
         log::debug!(
@@ -390,7 +390,7 @@ impl Runtime {
     /// to continue executing.
     pub(crate) fn unblock_queries_blocked_on(
         &self,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         wait_result: WaitResult,
     ) {
         self.shared_state

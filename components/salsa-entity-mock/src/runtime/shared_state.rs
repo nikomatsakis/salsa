@@ -3,7 +3,7 @@ use std::sync::{atomic::AtomicUsize, Arc};
 use crossbeam::atomic::AtomicCell;
 use parking_lot::Mutex;
 
-use crate::{durability::Durability, revision::AtomicRevision, DatabaseKeyIndex};
+use crate::{durability::Durability, key::DependencyIndex, revision::AtomicRevision};
 
 use super::dependency_graph::DependencyGraph;
 
@@ -14,7 +14,7 @@ pub(super) struct SharedState {
     pub(super) next_id: AtomicUsize,
 
     /// Vector we can clone
-    pub(super) empty_dependencies: Arc<[DatabaseKeyIndex]>,
+    pub(super) empty_dependencies: Arc<[DependencyIndex]>,
 
     /// Set to true when the current revision has been canceled.
     /// This is done when we an input is being changed. The flag

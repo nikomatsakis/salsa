@@ -1,11 +1,11 @@
-use crate::cycle::CycleRecoveryStrategy;
+use crate::{cycle::CycleRecoveryStrategy, key::DependencyIndex};
 
-use super::{DatabaseKeyIndex, Revision};
+use super::Revision;
 
 pub trait Ingredient<DB: ?Sized> {
     fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy;
 
-    fn maybe_changed_after(&self, db: &DB, input: DatabaseKeyIndex, revision: Revision) -> bool;
+    fn maybe_changed_after(&self, db: &DB, input: DependencyIndex, revision: Revision) -> bool;
 }
 
 /// Optional trait for ingredients that wish to be notified when new revisions are

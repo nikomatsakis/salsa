@@ -1,6 +1,6 @@
 use std::{panic::AssertUnwindSafe, sync::Arc};
 
-use crate::{key::ActiveDatabaseKeyIndex, Database, DatabaseKeyIndex};
+use crate::{key::DatabaseKeyIndex, Database};
 
 /// Captures the participants of a cycle that occurred when executing a query.
 ///
@@ -22,7 +22,7 @@ pub struct Cycle {
     participants: CycleParticipants,
 }
 
-pub(crate) type CycleParticipants = Arc<Vec<ActiveDatabaseKeyIndex>>;
+pub(crate) type CycleParticipants = Arc<Vec<DatabaseKeyIndex>>;
 
 impl Cycle {
     pub(crate) fn new(participants: CycleParticipants) -> Self {
@@ -53,7 +53,7 @@ impl Cycle {
     /// in the cycle. The start point of this iteration within the cycle
     /// is arbitrary but deterministic, but the ordering is otherwise determined
     /// by the execution.
-    pub fn participant_keys(&self) -> impl Iterator<Item = ActiveDatabaseKeyIndex> + '_ {
+    pub fn participant_keys(&self) -> impl Iterator<Item = DatabaseKeyIndex> + '_ {
         self.participants.iter().copied()
     }
 

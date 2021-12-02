@@ -2,8 +2,8 @@ use crate::{
     durability::Durability,
     entity::Disambiguator,
     hash::{FxIndexMap, FxIndexSet},
-    key::ActiveDatabaseKeyIndex,
-    Cycle, DatabaseKeyIndex, Revision, Runtime,
+    key::{DatabaseKeyIndex, DependencyIndex},
+    Cycle, Revision, Runtime,
 };
 
 use super::local_state::{QueryInputs, QueryRevisions};
@@ -11,7 +11,7 @@ use super::local_state::{QueryInputs, QueryRevisions};
 #[derive(Debug)]
 pub(super) struct ActiveQuery {
     /// What query is executing
-    pub(super) database_key_index: ActiveDatabaseKeyIndex,
+    pub(super) database_key_index: DatabaseKeyIndex,
 
     /// Minimum durability of inputs observed so far.
     pub(super) durability: Durability,
@@ -22,7 +22,7 @@ pub(super) struct ActiveQuery {
 
     /// Set of subqueries that were accessed thus far, or `None` if
     /// there was an untracked the read.
-    pub(super) dependencies: Option<FxIndexSet<DatabaseKeyIndex>>,
+    pub(super) dependencies: Option<FxIndexSet<DependencyIndex>>,
 
     /// Stores the entire cycle, if one is found and this query is part of it.
     pub(super) cycle: Option<Cycle>,
@@ -34,7 +34,7 @@ pub(super) struct ActiveQuery {
 }
 
 impl ActiveQuery {
-    pub(super) fn new(database_key_index: ActiveDatabaseKeyIndex) -> Self {
+    pub(super) fn new(database_key_index: DatabaseKeyIndex) -> Self {
         ActiveQuery {
             database_key_index,
             durability: Durability::MAX,
@@ -47,7 +47,7 @@ impl ActiveQuery {
 
     pub(super) fn add_read(
         &mut self,
-        input: DatabaseKeyIndex,
+        input: DependencyIndex,
         durability: Durability,
         revision: Revision,
     ) {
@@ -110,7 +110,7 @@ impl ActiveQuery {
     pub(super) fn remove_cycle_participants(&mut self, cycle: &Cycle) {
         if let Some(my_dependencies) = &mut self.dependencies {
             for p in cycle.participant_keys() {
-                let p: DatabaseKeyIndex = p.into();
+                let p: DependencyIndex = p.into();
                 my_dependencies.remove(&p);
             }
         }

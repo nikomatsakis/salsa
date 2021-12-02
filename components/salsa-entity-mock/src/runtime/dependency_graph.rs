@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::key::ActiveDatabaseKeyIndex;
+use crate::key::DatabaseKeyIndex;
 use parking_lot::{Condvar, MutexGuard};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -19,7 +19,7 @@ pub(super) struct DependencyGraph {
 
     /// Encodes the `RuntimeId` that are blocked waiting for the result
     /// of a given query.
-    query_dependents: FxHashMap<ActiveDatabaseKeyIndex, SmallVec<[RuntimeId; 4]>>,
+    query_dependents: FxHashMap<DatabaseKeyIndex, SmallVec<[RuntimeId; 4]>>,
 
     /// When a key K completes which had dependent queries Qs blocked on it,
     /// it stores its `WaitResult` here. As they wake up, each query Q in Qs will
@@ -30,7 +30,7 @@ pub(super) struct DependencyGraph {
 #[derive(Debug)]
 struct Edge {
     blocked_on_id: RuntimeId,
-    blocked_on_key: ActiveDatabaseKeyIndex,
+    blocked_on_key: DatabaseKeyIndex,
     stack: QueryStack,
 
     /// Signalled whenever a query with dependents completes.
@@ -64,7 +64,7 @@ impl DependencyGraph {
         &mut self,
         from_id: RuntimeId,
         from_stack: &mut QueryStack,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         to_id: RuntimeId,
         mut closure: impl FnMut(&mut [ActiveQuery]),
     ) {
@@ -132,7 +132,7 @@ impl DependencyGraph {
         &mut self,
         from_id: RuntimeId,
         from_stack: &QueryStack,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         to_id: RuntimeId,
     ) -> (bool, bool) {
         // See diagram in `for_each_cycle_participant`.
@@ -195,7 +195,7 @@ impl DependencyGraph {
     pub(super) fn block_on<QueryMutexGuard>(
         mut me: MutexGuard<'_, Self>,
         from_id: RuntimeId,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         to_id: RuntimeId,
         from_stack: QueryStack,
         query_mutex_guard: QueryMutexGuard,
@@ -221,7 +221,7 @@ impl DependencyGraph {
     fn add_edge(
         &mut self,
         from_id: RuntimeId,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         to_id: RuntimeId,
         from_stack: QueryStack,
     ) -> Arc<parking_lot::Condvar> {
@@ -250,7 +250,7 @@ impl DependencyGraph {
     /// `database_key`.
     pub(super) fn unblock_runtimes_blocked_on(
         &mut self,
-        database_key: ActiveDatabaseKeyIndex,
+        database_key: DatabaseKeyIndex,
         wait_result: WaitResult,
     ) {
         let dependents = self

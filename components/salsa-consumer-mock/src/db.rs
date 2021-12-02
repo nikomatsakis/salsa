@@ -65,7 +65,7 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
 
     fn maybe_changed_after(
         &self,
-        input: salsa::DatabaseKeyIndex,
+        input: salsa::key::DependencyIndex,
         revision: salsa::Revision,
     ) -> bool {
         let ingredient = self.storage.ingredient(input.ingredient_index());
