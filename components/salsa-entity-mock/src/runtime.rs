@@ -125,14 +125,14 @@ impl Runtime {
         &self,
         entity_index: IngredientIndex,
         reset_at: Revision,
-        _data_hash: u64,
-    ) -> (DatabaseKeyIndex, Disambiguator) {
+        data_hash: u64,
+    ) -> (ActiveDatabaseKeyIndex, Disambiguator) {
         self.report_tracked_read(
             DatabaseKeyIndex::for_table(entity_index),
             Durability::MAX,
             reset_at,
         );
-        todo!()
+        self.local_state.disambiguate(data_hash)
     }
 
     /// The revision in which values with durability `d` may have last

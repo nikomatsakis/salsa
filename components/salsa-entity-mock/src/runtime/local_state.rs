@@ -1,6 +1,7 @@
 use log::debug;
 
 use crate::durability::Durability;
+use crate::entity::Disambiguator;
 use crate::key::ActiveDatabaseKeyIndex;
 use crate::runtime::Revision;
 use crate::Cycle;
@@ -182,6 +183,16 @@ impl LocalState {
     pub(super) fn restore_query_stack(&self, stack: Vec<ActiveQuery>) {
         assert!(self.query_stack.borrow().is_none(), "query stack not taken");
         self.query_stack.replace(Some(stack));
+    }
+
+    #[track_caller]
+    pub(crate) fn disambiguate(&self, data_hash: u64) -> (ActiveDatabaseKeyIndex, Disambiguator) {
+        assert!(self.query_in_progress());
+        self.with_query_stack(|stack| {
+            let top_query = stack.last_mut().unwrap();
+            let disambiguator = top_query.disambiguate(data_hash);
+            (top_query.database_key_index, disambiguator)
+        })
     }
 }
 

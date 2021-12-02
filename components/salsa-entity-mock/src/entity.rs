@@ -2,6 +2,7 @@ use crate::{
     cycle::CycleRecoveryStrategy,
     ingredient::{Ingredient, MutIngredient},
     interned::{InternedData, InternedId, InternedIngredient},
+    key::ActiveDatabaseKeyIndex,
     runtime::Runtime,
     DatabaseKeyIndex, IngredientIndex, Revision,
 };
@@ -23,7 +24,7 @@ where
 
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Copy, Clone)]
 struct EntityKey<Data> {
-    query_key: DatabaseKeyIndex,
+    query_key: ActiveDatabaseKeyIndex,
     disambiguator: Disambiguator,
     data: Data,
 }
