@@ -32,10 +32,6 @@ impl DependencyIndex {
     pub fn debug<DB: ?Sized + Database>(self, _db: &DB) -> impl Debug + '_ {
         self // FIXME
     }
-
-    pub(crate) fn is(self, a: DatabaseKeyIndex) -> bool {
-        self.ingredient_index == a.ingredient_index && self.key_index == Some(a.key_index)
-    }
 }
 
 /// An "active" database key index represents a database key index
