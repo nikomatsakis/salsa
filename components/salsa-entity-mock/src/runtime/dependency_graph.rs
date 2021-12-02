@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{key::ActiveDatabaseKeyIndex, DatabaseKeyIndex};
+use crate::key::ActiveDatabaseKeyIndex;
 use parking_lot::{Condvar, MutexGuard};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;

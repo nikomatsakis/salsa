@@ -106,7 +106,7 @@ impl LocalState {
         })
     }
 
-    pub(super) fn report_query_read_and_unwind_if_cycle_resulted(
+    pub(super) fn report_tracked_read(
         &self,
         input: DatabaseKeyIndex,
         durability: Durability,

@@ -91,7 +91,8 @@ impl Runtime {
         durability: Durability,
         changed_at: Revision,
     ) {
-        todo!()
+        self.local_state
+            .report_tracked_read(key_index, durability, changed_at)
     }
 
     /// Reports that the query depends on some state unknown to salsa.
