@@ -2,6 +2,7 @@ use crate::{
     durability::Durability,
     entity::Disambiguator,
     hash::{FxIndexMap, FxIndexSet},
+    key::ActiveDatabaseKeyIndex,
     Cycle, DatabaseKeyIndex, Revision, Runtime,
 };
 
@@ -10,7 +11,7 @@ use super::local_state::{QueryInputs, QueryRevisions};
 #[derive(Debug)]
 pub(super) struct ActiveQuery {
     /// What query is executing
-    pub(super) database_key_index: DatabaseKeyIndex,
+    pub(super) database_key_index: ActiveDatabaseKeyIndex,
 
     /// Minimum durability of inputs observed so far.
     pub(super) durability: Durability,
@@ -33,7 +34,7 @@ pub(super) struct ActiveQuery {
 }
 
 impl ActiveQuery {
-    pub(super) fn new(database_key_index: DatabaseKeyIndex) -> Self {
+    pub(super) fn new(database_key_index: ActiveDatabaseKeyIndex) -> Self {
         ActiveQuery {
             database_key_index,
             durability: Durability::MAX,

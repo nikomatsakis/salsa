@@ -1,52 +1,88 @@
 use crossbeam::atomic::AtomicCell;
 
 use crate::{
+    cycle::CycleRecoveryStrategy,
     durability::Durability,
     function::memo::Memo,
+    jar::Jar,
+    key::ActiveDatabaseKeyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
+    Cycle, Database, DatabaseKeyIndex, DbWithJar, Id, Revision,
 };
 
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
 
+mod execute;
+mod fetch;
+mod lru;
+mod maybe_changed_after;
 mod memo;
+mod sync;
 
 #[allow(dead_code)]
-pub struct FunctionIngredient<K: Key, V: Value> {
+pub struct FunctionIngredient<C: Configuration> {
     index: IngredientIndex,
-    memo_map: memo::MemoMap<K, V>,
+    memo_map: memo::MemoMap<C::Key, C::Value>,
+    sync_map: sync::SyncMap,
+    lru: lru::Lru,
 }
 
-pub trait Key: Eq + AsId {}
-impl<T: AsId> Key for T {}
+pub trait Configuration {
+    type Jar: Jar;
+    type Key: Eq + AsId;
+    type Value: Clone + std::fmt::Debug;
 
-pub trait Value: Clone {}
-impl<T: Clone> Value for T {}
+    const CYCLE_STRATEGY: CycleRecoveryStrategy;
 
-impl<K, V> FunctionIngredient<K, V>
+    const MEMOIZE_VALUE: bool;
+
+    fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool;
+
+    fn execute(db: &DynDb<Self>, key: Self::Key) -> Self::Value;
+
+    fn recover_from_cycle(db: &DynDb<Self>, cycle: &Cycle, key: Self::Key) -> Self::Value;
+
+    fn key_from_id(id: Id) -> Self::Key {
+        AsId::from_id(id)
+    }
+}
+
+pub type DynDb<C: ?Sized> = <<C as Configuration>::Jar as Jar>::DynDb;
+
+impl<C> FunctionIngredient<C>
 where
-    K: Key,
-    V: Value,
+    C: Configuration,
 {
     pub fn new(index: IngredientIndex) -> Self {
         Self {
             index,
             memo_map: memo::MemoMap::default(),
+            lru: Default::default(),
+            sync_map: Default::default(),
         }
     }
 
-    pub fn fetch<DB>(
-        &self,
-        key: K,
-        runtime: &Runtime,
-        db: DB,
-        compute_value: impl FnOnce(K, DB) -> V,
-    ) -> V {
-        let index = key.as_id().as_u32();
-        drop((db, runtime, index, compute_value));
-        panic!()
+    fn database_key_index(&self, k: C::Key) -> DatabaseKeyIndex {
+        DatabaseKeyIndex {
+            ingredient_index: self.index,
+            key_index: Some(k.as_id()),
+        }
     }
 
-    pub fn store(&mut self, key: K, runtime: &mut Runtime, value: V, durability: Durability) {
+    fn active_database_key_index(&self, k: C::Key) -> ActiveDatabaseKeyIndex {
+        ActiveDatabaseKeyIndex {
+            ingredient_index: self.index,
+            key_index: k.as_id(),
+        }
+    }
+
+    pub fn store(
+        &mut self,
+        key: C::Key,
+        runtime: &mut Runtime,
+        value: C::Value,
+        durability: Durability,
+    ) {
         let revision = runtime.current_revision();
         let memo = Memo {
             value: Some(value),
@@ -67,16 +103,18 @@ where
     }
 }
 
-impl<K, V> Ingredient for FunctionIngredient<K, V>
+impl<DB, C> Ingredient<DB> for FunctionIngredient<C>
 where
-    K: Key,
-    V: Value,
+    DB: ?Sized + DbWithJar<C::Jar>,
+    C: Configuration,
 {
-    fn maybe_changed_after(
-        &self,
-        _input: super::DatabaseKeyIndex,
-        _revision: super::Revision,
-    ) -> bool {
-        todo!()
+    fn maybe_changed_after(&self, db: &DB, input: DatabaseKeyIndex, revision: Revision) -> bool {
+        let key = C::key_from_id(input.key_index.unwrap());
+        let db = db.as_jar_db();
+        self.maybe_changed_after(db, key, revision)
+    }
+
+    fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy {
+        C::CYCLE_STRATEGY
     }
 }

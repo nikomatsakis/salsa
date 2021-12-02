@@ -1,13 +1,17 @@
+use salsa::cycle::CycleRecoveryStrategy;
 use salsa::durability::Durability;
 use salsa::entity::EntityIngredient;
 use salsa::storage::{HasIngredientsFor, IngredientsFor};
 
 // Source:
 //
-// #[salsa::jar]
-// struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
+// #[salsa::jar(Jar0Db)]
+// pub struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
 //
-// trait Jar0Db: salsa::HasJar<Jar0> {}
+// pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
+//
+// impl<DB> Jar0Db for DB
+// where DB: ?Sized + salsa::DbWithJar<Jar0> {}
 
 pub struct Jar0(
     <Entity0 as IngredientsFor>::Ingredients,
@@ -57,10 +61,12 @@ impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
 }
 
 impl salsa::jar::Jar for Jar0 {
+    type DynDb = dyn Jar0Db;
+
     fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
     where
-        DB: salsa::storage::HasJars,
-        salsa::storage::Storage<DB>: salsa::HasJar<Self>,
+        DB: salsa::storage::HasJars + salsa::storage::DbWithJar<Self>,
+        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self>,
     {
         let i0 = <Entity0 as IngredientsFor>::create_ingredients(ingredients);
         let i1 = <Ty0 as IngredientsFor>::create_ingredients(ingredients);
@@ -70,7 +76,10 @@ impl salsa::jar::Jar for Jar0 {
     }
 }
 
-trait Jar0Db: salsa::HasJar<Jar0> {}
+// FIXME: 'static
+pub trait Jar0Db: salsa::DbWithJar<Jar0> + 'static {}
+
+impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> + 'static {}
 
 // Source:
 //
@@ -98,9 +107,9 @@ mod __entity0 {
     impl Entity0 {
         pub fn data<DB: ?Sized>(self, db: &DB) -> &EntityData0
         where
-            DB: salsa::HasJar<Jar0>,
+            DB: salsa::storage::HasJar<Jar0>,
         {
-            let (jar, runtime) = salsa::HasJar::jar(db);
+            let (jar, runtime) = salsa::storage::HasJar::jar(db);
             return helper(jar, runtime, self);
 
             fn helper<'j>(
@@ -123,15 +132,15 @@ mod __entity0 {
         ) -> Self::Ingredients
         where
             DB: salsa::storage::HasJars,
-            salsa::storage::Storage<DB>: salsa::HasJar<Self::Jar>,
+            salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
         {
             let index = ingredients.push_mut(
                 |storage| {
-                    let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar(storage);
+                    let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
                     <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
                 },
                 |storage| {
-                    let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar_mut(storage);
+                    let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar_mut(storage);
                     <Jar0 as HasIngredientsFor<Self>>::ingredient_mut(jar)
                 },
             );
@@ -147,9 +156,9 @@ mod __entity0 {
     impl EntityData0 {
         pub fn new<DB: ?Sized>(self, db: &DB) -> Entity0
         where
-            DB: salsa::HasJar<Jar0>,
+            DB: salsa::storage::HasJar<Jar0>,
         {
-            let (jar, runtime) = salsa::HasJar::jar(db);
+            let (jar, runtime) = salsa::storage::HasJar::jar(db);
             return helper(jar, runtime, self);
 
             fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: EntityData0) -> Entity0 {
@@ -189,9 +198,9 @@ mod __ty0 {
     impl Ty0 {
         pub fn data<DB: ?Sized>(self, db: &DB) -> &TyData0
         where
-            DB: salsa::HasJar<Jar0>,
+            DB: salsa::storage::HasJar<Jar0>,
         {
-            let (jar, runtime) = salsa::HasJar::jar(db);
+            let (jar, runtime) = salsa::storage::HasJar::jar(db);
             return helper(jar, runtime, self);
 
             fn helper<'j>(jar: &'j Jar0, runtime: &'j salsa::Runtime, id: Ty0) -> &'j TyData0 {
@@ -210,10 +219,10 @@ mod __ty0 {
         ) -> Self::Ingredients
         where
             DB: salsa::storage::HasJars,
-            salsa::storage::Storage<DB>: salsa::HasJar<Self::Jar>,
+            salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
         {
             let index = ingredients.push(|storage| {
-                let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar(storage);
+                let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
                 <Jar0 as HasIngredientsFor<Self>>::ingredient(jar)
             });
             salsa::interned::InternedIngredient::new(index)
@@ -228,9 +237,9 @@ mod __ty0 {
     impl TyData0 {
         pub fn intern<DB: ?Sized>(self, db: &DB) -> Ty0
         where
-            DB: salsa::HasJar<Jar0>,
+            DB: salsa::storage::HasJar<Jar0>,
         {
-            let (jar, runtime) = salsa::HasJar::jar(db);
+            let (jar, runtime) = salsa::storage::HasJar::jar(db);
             return helper(jar, runtime, self);
 
             fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: TyData0) -> Ty0 {
@@ -254,7 +263,49 @@ pub(self) use self::__ty0::TyData0;
 // }
 
 pub struct EntityComponent0 {
-    method: salsa::function::FunctionIngredient<Entity0, String>,
+    method: salsa::function::FunctionIngredient<EntityComponent0_method>,
+}
+
+#[allow(non_camel_case_types)]
+struct EntityComponent0_method;
+
+impl salsa::function::Configuration for EntityComponent0_method {
+    type Jar = Jar0;
+
+    type Key = Entity0;
+
+    type Value = String;
+
+    const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy =
+        salsa::cycle::CycleRecoveryStrategy::Panic;
+
+    const MEMOIZE_VALUE: bool = true;
+
+    fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
+        v1 == v2
+    }
+
+    fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
+        trait __Secret__ {
+            fn method(self, db: &dyn Jar0Db) -> String;
+        }
+
+        impl __Secret__ for Entity0 {
+            fn method(self, _db: &dyn Jar0Db) -> String {
+                format!("Hello, world")
+            }
+        }
+
+        <Entity0 as __Secret__>::method(key, db)
+    }
+
+    fn recover_from_cycle(
+        db: &salsa::function::DynDb<Self>,
+        cycle: &salsa::Cycle,
+        key: Self::Key,
+    ) -> Self::Value {
+        todo!()
+    }
 }
 
 impl IngredientsFor for EntityComponent0 {
@@ -263,11 +314,11 @@ impl IngredientsFor for EntityComponent0 {
 
     fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
     where
-        DB: salsa::storage::HasJars,
-        salsa::storage::Storage<DB>: salsa::HasJar<Self::Jar>,
+        DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
+        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
     {
         let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar(storage);
+            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
             let ingredients = <Jar0 as HasIngredientsFor<Self>>::ingredient(jar);
             &ingredients.method
         });
@@ -280,22 +331,10 @@ impl IngredientsFor for EntityComponent0 {
 impl Entity0 {
     #[allow(dead_code)]
     fn method(self, db: &dyn Jar0Db) -> String {
-        trait __Secret__ {
-            fn method(self, db: &dyn Jar0Db) -> String;
-        }
-
-        impl __Secret__ for Entity0 {
-            fn method(self, _db: &dyn Jar0Db) -> String {
-                format!("Hello, world")
-            }
-        }
-
-        let (jar, runtime) = salsa::HasJar::jar(db);
+        let (jar, runtime) = salsa::storage::HasJar::jar(db);
         let component: &EntityComponent0 =
             <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-        component
-            .method
-            .fetch(self, runtime, db, <Entity0 as __Secret__>::method)
+        component.method.fetch(db, self)
     }
 
     fn set_method(self, _db: &dyn Jar0Db, _value: String) {
@@ -320,7 +359,43 @@ impl Entity0 {
 #[allow(non_camel_case_types)]
 pub struct my_func {
     intern_map: salsa::interned::InternedIngredient<salsa::Id, (u32, u32)>,
-    function: salsa::function::FunctionIngredient<salsa::Id, String>,
+    function: salsa::function::FunctionIngredient<my_func>,
+}
+
+impl salsa::function::Configuration for my_func {
+    type Jar = Jar0;
+
+    type Key = salsa::id::Id;
+
+    type Value = String;
+
+    const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy = CycleRecoveryStrategy::Panic;
+
+    const MEMOIZE_VALUE: bool = true;
+
+    fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
+        old_value == new_value
+    }
+
+    fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
+        fn __secret__(_db: &dyn Jar0Db, _input1: u32, _input2: u32) -> String {
+            format!("Hello, world")
+        }
+
+        let (jar, runtime) = salsa::storage::HasJar::jar(db);
+        let my_func: &my_func =
+            <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
+        let key = my_func.intern_map.data(runtime, key).clone();
+        __secret__(db, key.0, key.1)
+    }
+
+    fn recover_from_cycle(
+        db: &salsa::function::DynDb<Self>,
+        cycle: &salsa::Cycle,
+        key: Self::Key,
+    ) -> Self::Value {
+        panic!()
+    }
 }
 
 impl IngredientsFor for my_func {
@@ -329,18 +404,18 @@ impl IngredientsFor for my_func {
 
     fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
     where
-        DB: salsa::storage::HasJars,
-        salsa::storage::Storage<DB>: salsa::HasJar<Self::Jar>,
+        DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
+        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
     {
         let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar(storage);
+            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
             let ingredients = <Jar0 as HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
             &ingredients.intern_map
         });
         let intern_map = salsa::interned::InternedIngredient::new(index);
 
         let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::HasJar<Self::Jar>>::jar(storage);
+            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
             let ingredients = <Jar0 as HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
             &ingredients.function
         });
@@ -355,21 +430,15 @@ impl IngredientsFor for my_func {
 
 #[allow(dead_code)]
 fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
-    fn __secret__(_db: &dyn Jar0Db, _input1: u32, _input2: u32) -> String {
-        format!("Hello, world")
-    }
-
-    let (jar, runtime) = salsa::HasJar::jar(db);
+    let (jar, runtime) = salsa::storage::HasJar::jar(db);
     let my_func: &my_func = <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
-    let id = my_func.intern_map.intern(runtime, (input1, input2));
-    my_func
-        .function
-        .fetch(id, runtime, db, |_id, db| __secret__(db, input1, input2))
+    let key = my_func.intern_map.intern(runtime, (input1, input2));
+    my_func.function.fetch(db, key)
 }
 
 impl my_func {
     fn set(db: &mut dyn Jar0Db, input1: u32, input2: u32, value: String) {
-        let (jar, runtime) = salsa::HasJar::jar_mut(db);
+        let (jar, runtime) = salsa::storage::HasJar::jar_mut(db);
         let my_func: &mut my_func =
             <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient_mut(jar);
         let id = my_func.intern_map.intern(runtime, (input1, input2));

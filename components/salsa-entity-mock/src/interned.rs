@@ -3,6 +3,7 @@ use crossbeam::queue::SegQueue;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use crate::durability::Durability;
 use crate::id::AsId;
 use crate::runtime::Runtime;
 
@@ -49,7 +50,11 @@ where
 
     #[allow(dead_code)]
     pub fn intern(&self, runtime: &Runtime, data: Data) -> Id {
-        runtime.report_tracked_read(DatabaseKeyIndex::for_table(self.ingredient_index));
+        runtime.report_tracked_read(
+            DatabaseKeyIndex::for_table(self.ingredient_index),
+            Durability::MAX,
+            self.reset_at,
+        );
 
         if let Some(id) = self.key_map.get(&data) {
             return *id;
@@ -72,6 +77,10 @@ where
         }
     }
 
+    pub(crate) fn reset_at(&self) -> Revision {
+        self.reset_at
+    }
+
     #[allow(dead_code)]
     pub fn reset(&mut self, revision: Revision) {
         assert!(revision > self.reset_at);
@@ -83,7 +92,11 @@ where
     #[allow(dead_code)]
     #[track_caller]
     pub fn data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {
-        runtime.report_tracked_read(DatabaseKeyIndex::for_table(self.ingredient_index));
+        runtime.report_tracked_read(
+            DatabaseKeyIndex::for_table(self.ingredient_index),
+            Durability::MAX,
+            self.reset_at,
+        );
 
         let data = match self.value_map.get(&id) {
             Some(d) => d,
@@ -149,16 +162,21 @@ unsafe fn transmute_lifetime<'t, 'u, T, U>(_t: &'t T, u: &'u U) -> &'t U {
     std::mem::transmute(u)
 }
 
-impl<Id, Data> Ingredient for InternedIngredient<Id, Data>
+impl<DB: ?Sized, Id, Data> Ingredient<DB> for InternedIngredient<Id, Data>
 where
     Id: InternedId,
     Data: InternedData,
 {
     fn maybe_changed_after(
         &self,
+        _db: &DB,
         _input: super::DatabaseKeyIndex,
         revision: super::Revision,
     ) -> bool {
         revision < self.reset_at
+    }
+
+    fn cycle_recovery_strategy(&self) -> crate::cycle::CycleRecoveryStrategy {
+        crate::cycle::CycleRecoveryStrategy::Panic
     }
 }

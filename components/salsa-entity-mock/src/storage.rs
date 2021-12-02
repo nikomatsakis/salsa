@@ -2,7 +2,12 @@ use std::sync::Arc;
 
 use parking_lot::Condvar;
 
+use crate::cycle::CycleRecoveryStrategy;
+use crate::ingredient::Ingredient;
+use crate::jar::Jar;
+use crate::key::ActiveDatabaseKeyIndex;
 use crate::runtime::Runtime;
+use crate::{Database, IngredientIndex};
 
 use super::routes::Ingredients;
 use super::{DatabaseKeyIndex, ParallelDatabase, Revision};
@@ -18,8 +23,6 @@ struct Shared<DB: HasJars> {
     jars: DB::Jars,
     cvar: Condvar,
 }
-
-trait Jar {}
 
 impl<DB> Default for Storage<DB>
 where
@@ -57,6 +60,10 @@ where
 
     pub fn jars(&self) -> (&DB::Jars, &Runtime) {
         (&self.shared.jars, &self.runtime)
+    }
+
+    pub fn runtime(&self) -> &Runtime {
+        &self.runtime
     }
 
     /// Gets mutable access to the jars. This will trigger a new revision
@@ -99,17 +106,10 @@ where
             self.shared.cvar.wait(&mut guard);
         }
     }
-}
 
-impl<DB: HasJars> HasJarsDyn for Storage<DB> {
-    fn runtime(&self) -> &Runtime {
-        &self.runtime
-    }
-
-    fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool {
-        let route = self.ingredients.route(input.ingredient_index);
-        let ingredient = route(self);
-        ingredient.maybe_changed_after(input, revision)
+    pub fn ingredient(&self, ingredient_index: IngredientIndex) -> &dyn Ingredient<DB> {
+        let route = self.ingredients.route(ingredient_index);
+        route(self)
     }
 }
 
@@ -134,7 +134,11 @@ pub trait HasJars: HasJarsDyn + Sized {
     fn create_jars(ingredients: &mut Ingredients<Self>) -> Self::Jars;
 }
 
-pub trait HasJar<J>: HasJarsDyn {
+pub trait DbWithJar<J: Jar>: HasJar<J> + Database {
+    fn as_jar_db(&self) -> &J::DynDb;
+}
+
+pub trait HasJar<J: Jar> {
     fn jar(&self) -> (&J, &Runtime);
 
     fn jar_mut(&mut self) -> (&mut J, &mut Runtime);
@@ -145,6 +149,8 @@ pub trait HasJarsDyn {
     fn runtime(&self) -> &Runtime;
 
     fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool;
+
+    fn cycle_recovery_strategy(&self, input: IngredientIndex) -> CycleRecoveryStrategy;
 }
 
 pub trait HasIngredientsFor<I>
@@ -156,11 +162,11 @@ where
 }
 
 pub trait IngredientsFor {
-    type Jar;
+    type Jar: Jar;
     type Ingredients;
 
     fn create_ingredients<DB>(ingredients: &mut Ingredients<DB>) -> Self::Ingredients
     where
-        DB: HasJars,
+        DB: HasJars + DbWithJar<Self::Jar>,
         Storage<DB>: HasJar<Self::Jar>;
 }

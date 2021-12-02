@@ -1,6 +1,6 @@
 use std::{panic::AssertUnwindSafe, sync::Arc};
 
-use crate::DatabaseKeyIndex;
+use crate::{Database, DatabaseKeyIndex};
 
 /// Captures the participants of a cycle that occurred when executing a query.
 ///
@@ -57,46 +57,69 @@ impl Cycle {
         self.participants.iter().copied()
     }
 
-    // /// Returns a vector with the debug information for
-    // /// all the participants in the cycle.
-    // pub fn all_participants<DB: ?Sized + Database>(&self, db: &DB) -> Vec<String> {
-    //     self.participant_keys()
-    //         .map(|d| format!("{:?}", d.debug(db)))
-    //         .collect()
-    // }
+    /// Returns a vector with the debug information for
+    /// all the participants in the cycle.
+    pub fn all_participants<DB: ?Sized + Database>(&self, db: &DB) -> Vec<String> {
+        self.participant_keys()
+            .map(|d| format!("{:?}", d.debug(db)))
+            .collect()
+    }
 
-    // /// Returns a vector with the debug information for
-    // /// those participants in the cycle that lacked recovery
-    // /// information.
-    // pub fn unexpected_participants<DB: ?Sized + Database>(&self, db: &DB) -> Vec<String> {
-    //     self.participant_keys()
-    //         .filter(|&d| db.cycle_recovery_strategy(d) == CycleRecoveryStrategy::Panic)
-    //         .map(|d| format!("{:?}", d.debug(db)))
-    //         .collect()
-    // }
+    /// Returns a vector with the debug information for
+    /// those participants in the cycle that lacked recovery
+    /// information.
+    pub fn unexpected_participants<DB: ?Sized + Database>(&self, db: &DB) -> Vec<String> {
+        self.participant_keys()
+            .filter(|&d| {
+                db.cycle_recovery_strategy(d.ingredient_index) == CycleRecoveryStrategy::Panic
+            })
+            .map(|d| format!("{:?}", d.debug(db)))
+            .collect()
+    }
 
-    // /// Returns a "debug" view onto this strict that can be used to print out information.
-    // pub fn debug<'me, DB: ?Sized + Database>(&'me self, db: &'me DB) -> impl std::fmt::Debug + 'me {
-    //     struct UnexpectedCycleDebug<'me> {
-    //         c: &'me Cycle,
-    //         db: &'me dyn Database,
-    //     }
+    /// Returns a "debug" view onto this strict that can be used to print out information.
+    pub fn debug<'me, DB: ?Sized + Database>(&'me self, db: &'me DB) -> impl std::fmt::Debug + 'me {
+        struct UnexpectedCycleDebug<'me> {
+            c: &'me Cycle,
+            db: &'me dyn Database,
+        }
 
-    //     impl<'me> std::fmt::Debug for UnexpectedCycleDebug<'me> {
-    //         fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    //             fmt.debug_struct("UnexpectedCycle")
-    //                 .field("all_participants", &self.c.all_participants(self.db))
-    //                 .field(
-    //                     "unexpected_participants",
-    //                     &self.c.unexpected_participants(self.db),
-    //                 )
-    //                 .finish()
-    //         }
-    //     }
+        impl<'me> std::fmt::Debug for UnexpectedCycleDebug<'me> {
+            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                fmt.debug_struct("UnexpectedCycle")
+                    .field("all_participants", &self.c.all_participants(self.db))
+                    .field(
+                        "unexpected_participants",
+                        &self.c.unexpected_participants(self.db),
+                    )
+                    .finish()
+            }
+        }
 
-    //     UnexpectedCycleDebug {
-    //         c: self,
-    //         db: db.ops_database(),
-    //     }
-    // }
+        UnexpectedCycleDebug {
+            c: self,
+            db: db.as_salsa_database(),
+        }
+    }
+}
+
+/// Cycle recovery strategy: Is this query capable of recovering from
+/// a cycle that results from executing the function? If so, how?
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CycleRecoveryStrategy {
+    /// Cannot recover from cycles: panic.
+    ///
+    /// This is the default. It is also what happens if a cycle
+    /// occurs and the queries involved have different recovery
+    /// strategies.
+    ///
+    /// In the case of a failure due to a cycle, the panic
+    /// value will be XXX (FIXME).
+    Panic,
+
+    /// Recovers from cycles by storing a sentinel value.
+    ///
+    /// This value is computed by the `QueryFunction::cycle_fallback`
+    /// function.
+    Fallback,
 }

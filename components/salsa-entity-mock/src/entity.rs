@@ -1,4 +1,5 @@
 use crate::{
+    cycle::CycleRecoveryStrategy,
     ingredient::{Ingredient, MutIngredient},
     interned::{InternedData, InternedId, InternedIngredient},
     runtime::Runtime,
@@ -43,8 +44,11 @@ where
 
     pub fn new_entity(&self, runtime: &Runtime, data: Data) -> Id {
         let data_hash = crate::hash::hash(&data);
-        let (query_key, disambiguator) =
-            runtime.disambiguate_entity(self.interned.ingredient_index(), data_hash);
+        let (query_key, disambiguator) = runtime.disambiguate_entity(
+            self.interned.ingredient_index(),
+            self.interned.reset_at(),
+            data_hash,
+        );
         let entity_key = EntityKey {
             query_key,
             disambiguator,
@@ -74,17 +78,21 @@ where
     }
 }
 
-impl<Id, Data> Ingredient for EntityIngredient<Id, Data>
+impl<DB: ?Sized, Id, Data> Ingredient<DB> for EntityIngredient<Id, Data>
 where
     Id: EntityId,
     Data: EntityData,
 {
-    fn maybe_changed_after(&self, input: DatabaseKeyIndex, revision: Revision) -> bool {
-        self.interned.maybe_changed_after(input, revision)
+    fn maybe_changed_after(&self, db: &DB, input: DatabaseKeyIndex, revision: Revision) -> bool {
+        self.interned.maybe_changed_after(db, input, revision)
+    }
+
+    fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy {
+        <_ as Ingredient<DB>>::cycle_recovery_strategy(&self.interned)
     }
 }
 
-impl<Id, Data> MutIngredient for EntityIngredient<Id, Data>
+impl<DB: ?Sized, Id, Data> MutIngredient<DB> for EntityIngredient<Id, Data>
 where
     Id: EntityId,
     Data: EntityData,

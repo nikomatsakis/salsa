@@ -28,9 +28,19 @@ struct TheDatabase {
     storage: salsa::Storage<Self>,
 }
 
-impl salsa::Database for TheDatabase {}
+impl salsa::Database for TheDatabase {
+    fn salsa_runtime(&self) -> &salsa::Runtime {
+        self.storage.runtime()
+    }
+}
 
 impl salsa::ParallelDatabase for TheDatabase {}
+
+impl salsa::database::AsSalsaDatabase for TheDatabase {
+    fn as_salsa_database(&self) -> &dyn salsa::Database {
+        self
+    }
+}
 
 impl salsa::storage::HasJars for TheDatabase {
     type Jars = (Jar0,);
@@ -58,21 +68,35 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
         input: salsa::DatabaseKeyIndex,
         revision: salsa::Revision,
     ) -> bool {
-        self.storage.maybe_changed_after(input, revision)
+        let ingredient = self.storage.ingredient(input.ingredient_index());
+        ingredient.maybe_changed_after(self, input, revision)
+    }
+
+    fn cycle_recovery_strategy(
+        &self,
+        input: salsa::IngredientIndex,
+    ) -> salsa::cycle::CycleRecoveryStrategy {
+        todo!()
     }
 }
 
-impl salsa::HasJar<Jar0> for TheDatabase {
+impl salsa::storage::DbWithJar<Jar0> for TheDatabase {
+    fn as_jar_db(&self) -> &<Jar0 as salsa::jar::Jar>::DynDb {
+        self
+    }
+}
+
+impl salsa::storage::HasJar<Jar0> for TheDatabase {
     fn jar(&self) -> (&Jar0, &salsa::Runtime) {
-        <_ as salsa::HasJar<Jar0>>::jar(&self.storage)
+        <_ as salsa::storage::HasJar<Jar0>>::jar(&self.storage)
     }
 
     fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
-        <_ as salsa::HasJar<Jar0>>::jar_mut(&mut self.storage)
+        <_ as salsa::storage::HasJar<Jar0>>::jar_mut(&mut self.storage)
     }
 }
 
-impl salsa::HasJar<Jar0> for salsa::Storage<TheDatabase> {
+impl salsa::storage::HasJar<Jar0> for salsa::Storage<TheDatabase> {
     fn jar(&self) -> (&Jar0, &salsa::Runtime) {
         let (jars, runtime) = self.jars();
         (&jars.0, runtime)

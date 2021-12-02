@@ -1,6 +1,7 @@
 use log::debug;
 
 use crate::durability::Durability;
+use crate::key::ActiveDatabaseKeyIndex;
 use crate::runtime::Revision;
 use crate::Cycle;
 use crate::DatabaseKeyIndex;
@@ -71,7 +72,10 @@ impl Default for LocalState {
 
 impl LocalState {
     #[inline]
-    pub(super) fn push_query(&self, database_key_index: DatabaseKeyIndex) -> ActiveQueryGuard<'_> {
+    pub(super) fn push_query(
+        &self,
+        database_key_index: ActiveDatabaseKeyIndex,
+    ) -> ActiveQueryGuard<'_> {
         let mut query_stack = self.query_stack.borrow_mut();
         let query_stack = query_stack.as_mut().expect("local stack taken");
         query_stack.push(ActiveQuery::new(database_key_index));
@@ -94,7 +98,7 @@ impl LocalState {
         self.with_query_stack(|stack| !stack.is_empty())
     }
 
-    pub(super) fn active_query(&self) -> Option<DatabaseKeyIndex> {
+    pub(super) fn active_query(&self) -> Option<ActiveDatabaseKeyIndex> {
         self.with_query_stack(|stack| {
             stack
                 .last()
@@ -190,7 +194,7 @@ impl std::panic::RefUnwindSafe for LocalState {}
 pub(crate) struct ActiveQueryGuard<'me> {
     local_state: &'me LocalState,
     push_len: usize,
-    pub(crate) database_key_index: DatabaseKeyIndex,
+    pub(crate) database_key_index: ActiveDatabaseKeyIndex,
 }
 
 impl ActiveQueryGuard<'_> {

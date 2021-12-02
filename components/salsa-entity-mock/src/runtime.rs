@@ -1,11 +1,19 @@
-use std::sync::{atomic::AtomicUsize, Arc};
+use std::{
+    panic::panic_any,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 use crate::{
+    cycle::CycleRecoveryStrategy,
     durability::Durability,
     hash::{FxIndexMap, FxIndexSet},
+    key::ActiveDatabaseKeyIndex,
     revision::AtomicRevision,
+    runtime::active_query::ActiveQuery,
     Cancelled, Cycle, Database, Event, EventKind, Revision,
 };
+
+use self::{dependency_graph::DependencyGraph, local_state::ActiveQueryGuard};
 
 use super::{entity::Disambiguator, DatabaseKeyIndex, IngredientIndex};
 
@@ -85,7 +93,12 @@ impl Runtime {
         todo!()
     }
 
-    pub(crate) fn report_tracked_read(&self, _key_index: DatabaseKeyIndex) {
+    pub(crate) fn report_tracked_read(
+        &self,
+        key_index: DatabaseKeyIndex,
+        durability: Durability,
+        changed_at: Revision,
+    ) {
         todo!()
     }
 
@@ -118,9 +131,14 @@ impl Runtime {
     pub(crate) fn disambiguate_entity(
         &self,
         entity_index: IngredientIndex,
+        reset_at: Revision,
         _data_hash: u64,
     ) -> (DatabaseKeyIndex, Disambiguator) {
-        self.report_tracked_read(DatabaseKeyIndex::for_table(entity_index));
+        self.report_tracked_read(
+            DatabaseKeyIndex::for_table(entity_index),
+            Durability::MAX,
+            reset_at,
+        );
         todo!()
     }
 
@@ -148,7 +166,7 @@ impl Runtime {
     /// This method should not be overridden by `Database` implementors. A
     /// `salsa_event` is emitted when this method is called, so that should be
     /// used instead.
-    pub(crate) fn unwind_if_revision_cancelled(&self, db: &dyn Database) {
+    pub(crate) fn unwind_if_revision_cancelled<DB: ?Sized + Database>(&self, db: &DB) {
         db.salsa_event(Event {
             runtime_id: self.id(),
             kind: EventKind::WillCheckCancellation,
@@ -182,5 +200,209 @@ impl Runtime {
         self.shared_state.revisions[0].store(r_new);
         self.shared_state.revision_canceled.store(false);
         r_new
+    }
+
+    #[inline]
+    pub(crate) fn push_query(
+        &self,
+        database_key_index: ActiveDatabaseKeyIndex,
+    ) -> ActiveQueryGuard<'_> {
+        self.local_state.push_query(database_key_index)
+    }
+
+    /// Block until `other_id` completes executing `database_key`;
+    /// panic or unwind in the case of a cycle.
+    ///
+    /// `query_mutex_guard` is the guard for the current query's state;
+    /// it will be dropped after we have successfully registered the
+    /// dependency.
+    ///
+    /// # Propagating panics
+    ///
+    /// If the thread `other_id` panics, then our thread is considered
+    /// cancelled, so this function will panic with a `Cancelled` value.
+    ///
+    /// # Cycle handling
+    ///
+    /// If the thread `other_id` already depends on the current thread,
+    /// and hence there is a cycle in the query graph, then this function
+    /// will unwind instead of returning normally. The method of unwinding
+    /// depends on the [`Self::mutual_cycle_recovery_strategy`]
+    /// of the cycle participants:
+    ///
+    /// * [`CycleRecoveryStrategy::Panic`]: panic with the [`Cycle`] as the value.
+    /// * [`CycleRecoveryStrategy::Fallback`]: initiate unwinding with [`CycleParticipant::unwind`].
+    pub(crate) fn block_on_or_unwind<QueryMutexGuard>(
+        &self,
+        db: &dyn Database,
+        database_key: ActiveDatabaseKeyIndex,
+        other_id: RuntimeId,
+        query_mutex_guard: QueryMutexGuard,
+    ) {
+        let mut dg = self.shared_state.dependency_graph.lock();
+
+        if dg.depends_on(other_id, self.id()) {
+            self.unblock_cycle_and_maybe_throw(db, &mut dg, database_key, other_id);
+
+            // If the above fn returns, then (via cycle recovery) it has unblocked the
+            // cycle, so we can continue.
+            assert!(!dg.depends_on(other_id, self.id()));
+        }
+
+        db.salsa_event(Event {
+            runtime_id: self.id(),
+            kind: EventKind::WillBlockOn {
+                other_runtime_id: other_id,
+                database_key: database_key.into(),
+            },
+        });
+
+        let stack = self.local_state.take_query_stack();
+
+        let (stack, result) = DependencyGraph::block_on(
+            dg,
+            self.id(),
+            database_key,
+            other_id,
+            stack,
+            query_mutex_guard,
+        );
+
+        self.local_state.restore_query_stack(stack);
+
+        match result {
+            WaitResult::Completed => (),
+
+            // If the other thread panicked, then we consider this thread
+            // cancelled. The assumption is that the panic will be detected
+            // by the other thread and responded to appropriately.
+            WaitResult::Panicked => Cancelled::PropagatedPanic.throw(),
+
+            WaitResult::Cycle(c) => c.throw(),
+        }
+    }
+
+    /// Handles a cycle in the dependency graph that was detected when the
+    /// current thread tried to block on `database_key_index` which is being
+    /// executed by `to_id`. If this function returns, then `to_id` no longer
+    /// depends on the current thread, and so we should continue executing
+    /// as normal. Otherwise, the function will throw a `Cycle` which is expected
+    /// to be caught by some frame on our stack. This occurs either if there is
+    /// a frame on our stack with cycle recovery (possibly the top one!) or if there
+    /// is no cycle recovery at all.
+    fn unblock_cycle_and_maybe_throw(
+        &self,
+        db: &dyn Database,
+        dg: &mut DependencyGraph,
+        database_key_index: ActiveDatabaseKeyIndex,
+        to_id: RuntimeId,
+    ) {
+        log::debug!(
+            "unblock_cycle_and_maybe_throw(database_key={:?})",
+            database_key_index
+        );
+
+        let mut from_stack = self.local_state.take_query_stack();
+        let from_id = self.id();
+
+        // Make a "dummy stack frame". As we iterate through the cycle, we will collect the
+        // inputs from each participant. Then, if we are participating in cycle recovery, we
+        // will propagate those results to all participants.
+        let mut cycle_query = ActiveQuery::new(database_key_index);
+
+        // Identify the cycle participants:
+        let cycle = {
+            let mut v: Vec<DatabaseKeyIndex> = vec![];
+            dg.for_each_cycle_participant(
+                from_id,
+                &mut from_stack,
+                database_key_index,
+                to_id,
+                |aqs| {
+                    aqs.iter_mut().for_each(|aq| {
+                        cycle_query.add_from(aq);
+                        v.push(aq.database_key_index.into());
+                    });
+                },
+            );
+
+            // We want to give the participants in a deterministic order
+            // (at least for this execution, not necessarily across executions),
+            // no matter where it started on the stack. Find the minimum
+            // key and rotate it to the front.
+            let min = v.iter().min().unwrap();
+            let index = v.iter().position(|p| p == min).unwrap();
+            v.rotate_left(index);
+
+            // No need to store extra memory.
+            v.shrink_to_fit();
+
+            Cycle::new(Arc::new(v))
+        };
+        log::debug!(
+            "cycle {:?}, cycle_query {:#?}",
+            cycle.debug(db),
+            cycle_query,
+        );
+
+        // We can remove the cycle participants from the list of dependencies;
+        // they are a strongly connected component (SCC) and we only care about
+        // dependencies to things outside the SCC that control whether it will
+        // form again.
+        cycle_query.remove_cycle_participants(&cycle);
+
+        // Mark each cycle participant that has recovery set, along with
+        // any frames that come after them on the same thread. Those frames
+        // are going to be unwound so that fallback can occur.
+        dg.for_each_cycle_participant(from_id, &mut from_stack, database_key_index, to_id, |aqs| {
+            aqs.iter_mut()
+                .skip_while(|aq| {
+                    match db.cycle_recovery_strategy(aq.database_key_index.ingredient_index) {
+                        CycleRecoveryStrategy::Panic => true,
+                        CycleRecoveryStrategy::Fallback => false,
+                    }
+                })
+                .for_each(|aq| {
+                    log::debug!("marking {:?} for fallback", aq.database_key_index.debug(db));
+                    aq.take_inputs_from(&cycle_query);
+                    assert!(aq.cycle.is_none());
+                    aq.cycle = Some(cycle.clone());
+                });
+        });
+
+        // Unblock every thread that has cycle recovery with a `WaitResult::Cycle`.
+        // They will throw the cycle, which will be caught by the frame that has
+        // cycle recovery so that it can execute that recovery.
+        let (me_recovered, others_recovered) =
+            dg.maybe_unblock_runtimes_in_cycle(from_id, &from_stack, database_key_index, to_id);
+
+        self.local_state.restore_query_stack(from_stack);
+
+        if me_recovered {
+            // If the current thread has recovery, we want to throw
+            // so that it can begin.
+            cycle.throw()
+        } else if others_recovered {
+            // If other threads have recovery but we didn't: return and we will block on them.
+        } else {
+            // if nobody has recover, then we panic
+            panic_any(cycle);
+        }
+    }
+
+    /// Invoked when this runtime completed computing `database_key` with
+    /// the given result `wait_result` (`wait_result` should be `None` if
+    /// computing `database_key` panicked and could not complete).
+    /// This function unblocks any dependent queries and allows them
+    /// to continue executing.
+    pub(crate) fn unblock_queries_blocked_on(
+        &self,
+        database_key: ActiveDatabaseKeyIndex,
+        wait_result: WaitResult,
+    ) {
+        self.shared_state
+            .dependency_graph
+            .lock()
+            .unblock_runtimes_blocked_on(database_key, wait_result);
     }
 }

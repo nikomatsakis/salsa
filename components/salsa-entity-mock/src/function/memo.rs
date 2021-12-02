@@ -4,17 +4,15 @@ use arc_swap::{ArcSwap, Guard};
 use crossbeam_utils::atomic::AtomicCell;
 
 use crate::{
-    hash::FxDashMap, runtime::local_state::QueryRevisions, DatabaseKeyIndex, Event, EventKind, Id,
-    Revision, Runtime,
+    hash::FxDashMap, key::ActiveDatabaseKeyIndex, runtime::local_state::QueryRevisions, AsId,
+    DatabaseKeyIndex, Event, EventKind, Id, Revision, Runtime,
 };
 
-use super::Key;
-
-pub(super) struct MemoMap<K: Key, V> {
+pub(super) struct MemoMap<K: AsId, V> {
     map: FxDashMap<K, ArcSwap<Memo<V>>>,
 }
 
-impl<K: Key, V> Default for MemoMap<K, V> {
+impl<K: AsId, V> Default for MemoMap<K, V> {
     fn default() -> Self {
         Self {
             map: Default::default(),
@@ -22,7 +20,7 @@ impl<K: Key, V> Default for MemoMap<K, V> {
     }
 }
 
-impl<K: Key, V> MemoMap<K, V> {
+impl<K: AsId, V> MemoMap<K, V> {
     /// Inserts the memo for the given key; (atomically) overwrites any previously existing memo.-
     pub(super) fn insert(&self, key: K, memo: Memo<V>) -> Option<ArcSwap<Memo<V>>> {
         self.map.insert(key, ArcSwap::from(Arc::new(memo)))
@@ -93,12 +91,12 @@ impl<V> Memo<V> {
         &self,
         db: &dyn crate::Database,
         runtime: &crate::Runtime,
-        database_key_index: DatabaseKeyIndex,
+        database_key_index: ActiveDatabaseKeyIndex,
     ) {
         db.salsa_event(Event {
             runtime_id: runtime.id(),
             kind: EventKind::DidValidateMemoizedValue {
-                database_key: database_key_index,
+                database_key: database_key_index.into(),
             },
         });
 
