@@ -110,6 +110,7 @@ impl ActiveQuery {
     pub(super) fn remove_cycle_participants(&mut self, cycle: &Cycle) {
         if let Some(my_dependencies) = &mut self.dependencies {
             for p in cycle.participant_keys() {
+                let p: DatabaseKeyIndex = p.into();
                 my_dependencies.remove(&p);
             }
         }

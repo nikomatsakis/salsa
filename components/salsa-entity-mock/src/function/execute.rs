@@ -62,7 +62,7 @@ where
                             // we are not a participant in this cycle
                             debug_assert!(!cycle
                                 .participant_keys()
-                                .any(|k| k.is(database_key_index)));
+                                .any(|k| k == database_key_index));
                             cycle.throw()
                         }
                     }

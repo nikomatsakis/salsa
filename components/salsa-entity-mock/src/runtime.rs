@@ -305,7 +305,7 @@ impl Runtime {
 
         // Identify the cycle participants:
         let cycle = {
-            let mut v: Vec<DatabaseKeyIndex> = vec![];
+            let mut v = vec![];
             dg.for_each_cycle_participant(
                 from_id,
                 &mut from_stack,
@@ -314,7 +314,7 @@ impl Runtime {
                 |aqs| {
                     aqs.iter_mut().for_each(|aq| {
                         cycle_query.add_from(aq);
-                        v.push(aq.database_key_index.into());
+                        v.push(aq.database_key_index);
                     });
                 },
             );
