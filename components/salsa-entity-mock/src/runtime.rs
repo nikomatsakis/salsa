@@ -79,6 +79,12 @@ impl Runtime {
         self.shared_state.revisions[0].load()
     }
 
+    /// Returns the index of the active query along with its *current* durability/changed-at
+    /// information. As the query continues to execute, naturally, that information may change.
+    pub(super) fn active_query(&self) -> Option<(DatabaseKeyIndex, StampedValue<()>)> {
+        self.local_state.active_query()
+    }
+
     pub(crate) fn empty_dependencies(&self) -> Arc<[DependencyIndex]> {
         self.shared_state.empty_dependencies.clone()
     }
@@ -115,6 +121,17 @@ impl Runtime {
         for rev in &self.shared_state.revisions[1..=durability.index()] {
             rev.store(new_revision);
         }
+    }
+
+    /// Adds `entity` to the lits of entities created by the current query.
+    /// Panics if `entity` was already added.
+    pub(crate) fn add_entity_created(&self, entity: DatabaseKeyIndex) {
+        self.local_state.add_entity_created(entity);
+    }
+
+    /// Check whether `entity` is contained the list of entities created by the current query.
+    pub(super) fn was_entity_created(&self, entity: DatabaseKeyIndex) -> bool {
+        self.local_state.was_entity_created(entity)
     }
 
     /// Called when the active queries creates an index from the

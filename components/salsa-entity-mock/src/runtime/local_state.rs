@@ -96,11 +96,38 @@ impl LocalState {
         self.with_query_stack(|stack| !stack.is_empty())
     }
 
-    pub(super) fn active_query(&self) -> Option<DatabaseKeyIndex> {
+    /// Returns the index of the active query along with its *current* durability/changed-at
+    /// information. As the query continues to execute, naturally, that information may change.
+    pub(super) fn active_query(&self) -> Option<(DatabaseKeyIndex, StampedValue<()>)> {
         self.with_query_stack(|stack| {
-            stack
-                .last()
-                .map(|active_query| active_query.database_key_index)
+            stack.last().map(|active_query| {
+                (
+                    active_query.database_key_index,
+                    StampedValue {
+                        value: (),
+                        durability: active_query.durability,
+                        changed_at: active_query.changed_at,
+                    },
+                )
+            })
+        })
+    }
+
+    pub(super) fn add_entity_created(&self, entity: DatabaseKeyIndex) {
+        self.with_query_stack(|stack| {
+            if let Some(top_query) = stack.last_mut() {
+                top_query.add_entity_created(entity)
+            }
+        })
+    }
+
+    pub(super) fn was_entity_created(&self, entity: DatabaseKeyIndex) -> bool {
+        self.with_query_stack(|stack| {
+            if let Some(top_query) = stack.last_mut() {
+                top_query.was_entity_created(entity)
+            } else {
+                false
+            }
         })
     }
 

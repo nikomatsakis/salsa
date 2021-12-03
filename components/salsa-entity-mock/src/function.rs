@@ -17,6 +17,7 @@ mod fetch;
 mod lru;
 mod maybe_changed_after;
 mod memo;
+mod set;
 mod sync;
 
 #[allow(dead_code)]

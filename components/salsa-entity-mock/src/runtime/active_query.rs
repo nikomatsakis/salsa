@@ -1,7 +1,7 @@
 use crate::{
     durability::Durability,
     entity::Disambiguator,
-    hash::{FxIndexMap, FxIndexSet},
+    hash::{FxHashSet, FxIndexMap, FxIndexSet},
     key::{DatabaseKeyIndex, DependencyIndex},
     Cycle, Revision, Runtime,
 };
@@ -31,6 +31,9 @@ pub(super) struct ActiveQuery {
     /// hash is added to this map. If it is not present, then the disambiguator is 0.
     /// Otherwise it is 1 more than the current value (which is incremented).
     pub(super) disambiguator_map: FxIndexMap<u64, Disambiguator>,
+
+    /// Tracks entities created by this query.
+    pub(super) entities_created: FxHashSet<DatabaseKeyIndex>,
 }
 
 impl ActiveQuery {
@@ -42,6 +45,7 @@ impl ActiveQuery {
             dependencies: Some(FxIndexSet::default()),
             cycle: None,
             disambiguator_map: Default::default(),
+            entities_created: Default::default(),
         }
     }
 
@@ -69,6 +73,15 @@ impl ActiveQuery {
         self.dependencies = None;
         self.durability = self.durability.min(durability);
         self.changed_at = self.changed_at.max(revision);
+    }
+
+    pub(super) fn add_entity_created(&mut self, entity: DatabaseKeyIndex) {
+        let is_new = self.entities_created.insert(entity);
+        assert!(is_new);
+    }
+
+    pub(super) fn was_entity_created(&self, entity: DatabaseKeyIndex) -> bool {
+        self.entities_created.contains(&entity)
     }
 
     pub(crate) fn revisions(&self, runtime: &Runtime) -> QueryRevisions {

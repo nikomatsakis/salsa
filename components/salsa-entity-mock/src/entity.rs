@@ -4,7 +4,7 @@ use crate::{
     interned::{InternedData, InternedId, InternedIngredient},
     key::{DatabaseKeyIndex, DependencyIndex},
     runtime::Runtime,
-    IngredientIndex, Revision,
+    Database, IngredientIndex, Revision,
 };
 
 pub trait EntityId: InternedId {}
@@ -12,6 +12,10 @@ impl<T: InternedId> EntityId for T {}
 
 pub trait EntityData: InternedData {}
 impl<T: InternedData> EntityData for T {}
+
+pub trait EntityInDb<DB: ?Sized + Database> {
+    fn database_key_index(self, db: &DB) -> DatabaseKeyIndex;
+}
 
 #[allow(dead_code)]
 pub struct EntityIngredient<Id, Data>
@@ -43,6 +47,13 @@ where
         }
     }
 
+    pub fn database_key_index(&self, id: Id) -> DatabaseKeyIndex {
+        DatabaseKeyIndex {
+            ingredient_index: self.interned.ingredient_index(),
+            key_index: id.as_id(),
+        }
+    }
+
     pub fn new_entity(&self, runtime: &Runtime, data: Data) -> Id {
         let data_hash = crate::hash::hash(&data);
         let (query_key, disambiguator) = runtime.disambiguate_entity(
@@ -55,7 +66,9 @@ where
             disambiguator,
             data,
         };
-        self.interned.intern(runtime, entity_key)
+        let result = self.interned.intern(runtime, entity_key);
+        runtime.add_entity_created(self.database_key_index(result));
+        result
     }
 
     pub fn entity_data<'db>(&'db self, runtime: &'db Runtime, id: Id) -> &'db Data {

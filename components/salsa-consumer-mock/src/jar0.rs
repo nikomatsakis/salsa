@@ -123,6 +123,17 @@ mod __entity0 {
         }
     }
 
+    impl<DB> salsa::entity::EntityInDb<DB> for Entity0
+    where
+        DB: ?Sized + salsa::DbWithJar<Jar0>,
+    {
+        fn database_key_index(self, db: &DB) -> salsa::DatabaseKeyIndex {
+            let (jar, _) = salsa::storage::HasJar::jar(db);
+            let ingredients = <Jar0 as HasIngredientsFor<Entity0>>::ingredient(jar);
+            ingredients.database_key_index(self)
+        }
+    }
+
     impl salsa::storage::IngredientsFor for Entity0 {
         type Jar = Jar0;
         type Ingredients = salsa::entity::EntityIngredient<Entity0, EntityData0>;
@@ -337,15 +348,11 @@ impl Entity0 {
         component.method.fetch(db, self)
     }
 
-    fn set_method(self, _db: &dyn Jar0Db, _value: String) {
-        // TODO:
-        //
-        // * Check that this entity was created by current query
-        //   (either by checking creator of entity or by checking
-        //   list of things created by current query, the latter
-        //   may be preferred but either should work in principle)
-        // * Insert into map
-        todo!()
+    fn set_method(self, db: &dyn Jar0Db, value: String) {
+        let (jar, _) = salsa::storage::HasJar::jar(db);
+        let component: &EntityComponent0 =
+            <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
+        component.method.set(db, self, value)
     }
 }
 
