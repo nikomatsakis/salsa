@@ -36,4 +36,5 @@ members = [
     "components/salsa-macros",
     "components/salsa-entity-mock",
     "components/salsa-consumer-mock",
+    "components/salsa-entity-macros",
 ]

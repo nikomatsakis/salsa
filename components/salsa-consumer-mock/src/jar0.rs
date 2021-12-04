@@ -7,81 +7,77 @@ pub(crate) mod main;
 
 // Source:
 //
-// #[salsa::jar(Jar0Db)]
-// pub struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
-//
-// pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
-//
-// impl<DB> Jar0Db for DB
-// where DB: ?Sized + salsa::DbWithJar<Jar0> {}
-
-pub struct Jar0(
-    <Entity0 as IngredientsFor>::Ingredients,
-    <Ty0 as IngredientsFor>::Ingredients,
-    <EntityComponent0 as IngredientsFor>::Ingredients,
-    <my_func as IngredientsFor>::Ingredients,
-);
-
-impl salsa::storage::HasIngredientsFor<Entity0> for Jar0 {
-    fn ingredient(&self) -> &<Entity0 as IngredientsFor>::Ingredients {
-        &self.0
-    }
-
-    fn ingredient_mut(&mut self) -> &mut <Entity0 as IngredientsFor>::Ingredients {
-        &mut self.0
-    }
-}
-
-impl salsa::storage::HasIngredientsFor<Ty0> for Jar0 {
-    fn ingredient(&self) -> &<Ty0 as IngredientsFor>::Ingredients {
-        &self.1
-    }
-
-    fn ingredient_mut(&mut self) -> &mut <Ty0 as IngredientsFor>::Ingredients {
-        &mut self.1
-    }
-}
-
-impl salsa::storage::HasIngredientsFor<EntityComponent0> for Jar0 {
-    fn ingredient(&self) -> &<EntityComponent0 as IngredientsFor>::Ingredients {
-        &self.2
-    }
-
-    fn ingredient_mut(&mut self) -> &mut <EntityComponent0 as IngredientsFor>::Ingredients {
-        &mut self.2
-    }
-}
-
-impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
-    fn ingredient(&self) -> &<my_func as IngredientsFor>::Ingredients {
-        &self.3
-    }
-
-    fn ingredient_mut(&mut self) -> &mut <my_func as IngredientsFor>::Ingredients {
-        &mut self.3
-    }
-}
-
-impl<'db> salsa::jar::Jar<'db> for Jar0 {
-    type DynDb = dyn Jar0Db + 'db;
-
-    fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
-    where
-        DB: salsa::storage::HasJars + salsa::storage::DbWithJar<Self>,
-        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self>,
-    {
-        let i0 = <Entity0 as IngredientsFor>::create_ingredients(ingredients);
-        let i1 = <Ty0 as IngredientsFor>::create_ingredients(ingredients);
-        let i2 = <EntityComponent0 as IngredientsFor>::create_ingredients(ingredients);
-        let i3 = <my_func as IngredientsFor>::create_ingredients(ingredients);
-        Jar0(i0, i1, i2, i3)
-    }
-}
-
-// FIXME: 'static
+#[salsa::jar(Jar0Db)]
+pub struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
 pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
-
 impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> {}
+
+// pub struct Jar0(,
+//     <Entity0 as IngredientsFor>::Ingredients,
+//     <Ty0 as IngredientsFor>::Ingredients,
+//     <EntityComponent0 as IngredientsFor>::Ingredients,
+//     <my_func as IngredientsFor>::Ingredients,
+// );
+
+// impl salsa::storage::HasIngredientsFor<Entity0> for Jar0 {
+//     fn ingredient(&self) -> &<Entity0 as IngredientsFor>::Ingredients {
+//         &self.0
+//     }
+
+//     fn ingredient_mut(&mut self) -> &mut <Entity0 as IngredientsFor>::Ingredients {
+//         &mut self.0
+//     }
+// }
+
+// impl salsa::storage::HasIngredientsFor<Ty0> for Jar0 {
+//     fn ingredient(&self) -> &<Ty0 as IngredientsFor>::Ingredients {
+//         &self.1
+//     }
+
+//     fn ingredient_mut(&mut self) -> &mut <Ty0 as IngredientsFor>::Ingredients {
+//         &mut self.1
+//     }
+// }
+
+// impl salsa::storage::HasIngredientsFor<EntityComponent0> for Jar0 {
+//     fn ingredient(&self) -> &<EntityComponent0 as IngredientsFor>::Ingredients {
+//         &self.2
+//     }
+
+//     fn ingredient_mut(&mut self) -> &mut <EntityComponent0 as IngredientsFor>::Ingredients {
+//         &mut self.2
+//     }
+// }
+
+// impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
+//     fn ingredient(&self) -> &<my_func as IngredientsFor>::Ingredients {
+//         &self.3
+//     }
+
+//     fn ingredient_mut(&mut self) -> &mut <my_func as IngredientsFor>::Ingredients {
+//         &mut self.3
+//     }
+// }
+
+// impl<'db> salsa::jar::Jar<'db> for Jar0 {
+//     type DynDb = dyn Jar0Db + 'db;
+
+//     fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
+//     where
+//         DB: salsa::storage::HasJars + salsa::storage::DbWithJar<Self>,
+//         salsa::storage::Storage<DB>: salsa::storage::HasJar<Self>,
+//     {
+//         let i0 = <Entity0 as IngredientsFor>::create_ingredients(ingredients);
+//         let i1 = <Ty0 as IngredientsFor>::create_ingredients(ingredients);
+//         let i2 = <EntityComponent0 as IngredientsFor>::create_ingredients(ingredients);
+//         let i3 = <my_func as IngredientsFor>::create_ingredients(ingredients);
+//         Jar0(i0, i1, i2, i3)
+//     }
+// }
+
+// pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
+
+// impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> {}
 
 // Source:
 //
