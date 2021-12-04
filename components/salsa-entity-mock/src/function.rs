@@ -25,7 +25,7 @@ pub struct FunctionIngredient<C: Configuration> {
 }
 
 pub trait Configuration {
-    type Jar: Jar;
+    type Jar: for<'db> Jar<'db>;
     type Key: Eq + AsId;
     type Value: Clone + std::fmt::Debug;
 
@@ -44,7 +44,7 @@ pub trait Configuration {
     }
 }
 
-pub type DynDb<C> = <<C as Configuration>::Jar as Jar>::DynDb;
+pub type DynDb<'bound, C> = <<C as Configuration>::Jar as Jar<'bound>>::DynDb;
 
 impl<C> FunctionIngredient<C>
 where
@@ -64,6 +64,10 @@ where
             ingredient_index: self.index,
             key_index: k.as_id(),
         }
+    }
+
+    pub fn set_capacity(&self, capacity: usize) {
+        self.lru.set_capacity(capacity);
     }
 }
 

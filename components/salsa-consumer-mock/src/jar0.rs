@@ -3,6 +3,8 @@ use salsa::durability::Durability;
 use salsa::entity::EntityIngredient;
 use salsa::storage::{HasIngredientsFor, IngredientsFor};
 
+pub(crate) mod main;
+
 // Source:
 //
 // #[salsa::jar(Jar0Db)]
@@ -60,8 +62,8 @@ impl salsa::storage::HasIngredientsFor<my_func> for Jar0 {
     }
 }
 
-impl salsa::jar::Jar for Jar0 {
-    type DynDb = dyn Jar0Db;
+impl<'db> salsa::jar::Jar<'db> for Jar0 {
+    type DynDb = dyn Jar0Db + 'db;
 
     fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
     where
@@ -77,9 +79,9 @@ impl salsa::jar::Jar for Jar0 {
 }
 
 // FIXME: 'static
-pub trait Jar0Db: salsa::DbWithJar<Jar0> + 'static {}
+pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
 
-impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> + 'static {}
+impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> {}
 
 // Source:
 //
@@ -451,15 +453,4 @@ impl my_func {
         let id = my_func.intern_map.intern(runtime, (input1, input2));
         my_func.function.store(id, runtime, value, Durability::LOW);
     }
-}
-
-// ----
-
-#[allow(dead_code)]
-fn foo(db: &dyn Jar0Db) {
-    let id = EntityData0 { id: 0 }.new(db);
-    id.data(db);
-
-    let ty = TyData0 { id: 0 }.intern(db);
-    ty.data(db);
 }

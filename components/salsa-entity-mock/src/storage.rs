@@ -134,11 +134,13 @@ pub trait HasJars: HasJarsDyn + Sized {
     fn create_jars(ingredients: &mut Ingredients<Self>) -> Self::Jars;
 }
 
-pub trait DbWithJar<J: Jar>: HasJar<J> + Database {
-    fn as_jar_db(&self) -> &J::DynDb;
+pub trait DbWithJar<J>: HasJar<J> + Database {
+    fn as_jar_db<'db>(&'db self) -> &<J as Jar<'db>>::DynDb
+    where
+        J: Jar<'db>;
 }
 
-pub trait HasJar<J: Jar> {
+pub trait HasJar<J> {
     fn jar(&self) -> (&J, &Runtime);
 
     fn jar_mut(&mut self) -> (&mut J, &mut Runtime);
@@ -162,7 +164,7 @@ where
 }
 
 pub trait IngredientsFor {
-    type Jar: Jar;
+    type Jar;
     type Ingredients;
 
     fn create_ingredients<DB>(ingredients: &mut Ingredients<DB>) -> Self::Ingredients

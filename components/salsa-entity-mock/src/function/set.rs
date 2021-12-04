@@ -2,6 +2,7 @@ use crossbeam::atomic::AtomicCell;
 
 use crate::{
     entity::EntityInDb,
+    jar::Jar,
     key::DependencyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
     Database,
@@ -13,9 +14,9 @@ impl<C> FunctionIngredient<C>
 where
     C: Configuration,
 {
-    pub fn set(&self, db: &DynDb<C>, key: C::Key, value: C::Value)
+    pub fn set<'db>(&self, db: &'db DynDb<'db, C>, key: C::Key, value: C::Value)
     where
-        C::Key: EntityInDb<DynDb<C>>,
+        C::Key: EntityInDb<DynDb<'db, C>>,
     {
         let runtime = db.salsa_runtime();
 

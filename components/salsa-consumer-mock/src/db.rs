@@ -4,7 +4,7 @@ use super::jar0::Jar0;
 //
 // ```rust
 // #[salsa::jars(Jar0, ..., JarN)]
-// struct TheDatabase {
+// pub(crate) struct TheDatabase {
 //     storage: salsa::Storage<Self>,
 // }
 //
@@ -24,8 +24,16 @@ use super::jar0::Jar0;
 // }
 // ```
 
-struct TheDatabase {
+pub(crate) struct TheDatabase {
     storage: salsa::Storage<Self>,
+}
+
+impl Default for TheDatabase {
+    fn default() -> Self {
+        Self {
+            storage: Default::default(),
+        }
+    }
 }
 
 impl salsa::Database for TheDatabase {
@@ -82,8 +90,11 @@ impl salsa::storage::HasJarsDyn for TheDatabase {
 }
 
 impl salsa::storage::DbWithJar<Jar0> for TheDatabase {
-    fn as_jar_db(&self) -> &<Jar0 as salsa::jar::Jar>::DynDb {
-        self
+    fn as_jar_db<'db>(&'db self) -> &'db <Jar0 as salsa::jar::Jar<'db>>::DynDb
+    where
+        'db: 'db,
+    {
+        self as &'db <Jar0 as salsa::jar::Jar<'db>>::DynDb
     }
 }
 
