@@ -14,12 +14,12 @@ pub(crate) fn entity(
 ) -> proc_macro::TokenStream {
     let entity_args = syn::parse_macro_input!(args as EntityArgs);
     let entity_data_input = syn::parse_macro_input!(input as ItemStruct);
-    entity_mod_and_pub_use(&entity_args, &entity_data_input).into()
+    entity_mod(&entity_args, &entity_data_input).into()
 }
 
 pub struct EntityArgs {
     entity_ident: Ident,
-    in_token: Token![in],
+    _in_token: Token![in],
     jar_path: Path,
 }
 
@@ -27,31 +27,13 @@ impl Parse for EntityArgs {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             entity_ident: Parse::parse(input)?,
-            in_token: Parse::parse(input)?,
+            _in_token: Parse::parse(input)?,
             jar_path: Parse::parse(input)?,
         })
     }
 }
 
-fn entity_mod_and_pub_use(
-    entity_args: &EntityArgs,
-    entity_data_input: &ItemStruct,
-) -> proc_macro2::TokenStream {
-    let item_mod = entity_mod(entity_args, entity_data_input);
-
-    let mod_ident = &item_mod.ident;
-    let entity_ident = &entity_args.entity_ident;
-    let entity_data_ident = &entity_data_input.ident;
-    let entity_data_vis = &entity_data_input.vis;
-
-    quote! {
-        #item_mod
-        #entity_data_vis use #mod_ident :: #entity_ident;
-        #entity_data_vis use #mod_ident :: #entity_data_ident;
-    }
-}
-
-fn entity_mod(args: &EntityArgs, entity_data_input: &ItemStruct) -> syn::ItemMod {
+fn entity_mod(args: &EntityArgs, entity_data_input: &ItemStruct) -> proc_macro2::TokenStream {
     let mod_name = syn::Ident::new(
         &format!(
             "__{}",
@@ -59,14 +41,6 @@ fn entity_mod(args: &EntityArgs, entity_data_input: &ItemStruct) -> syn::ItemMod
         ),
         args.entity_ident.span(),
     );
-
-    // Create a version of the struct that is forced
-    // to be public. This is a workaround for Rust's annoying
-    // pub-in-private rules.
-    let mut pub_entity_data = entity_data_input.clone();
-    pub_entity_data.vis = Visibility::Public(VisPublic {
-        pub_token: Token![pub](entity_data_input.vis.span()),
-    });
 
     let entity_struct: ItemStruct =
         syn::parse2(entity_struct(args)).expect("entity_struct parse failed");
@@ -82,21 +56,16 @@ fn entity_mod(args: &EntityArgs, entity_data_input: &ItemStruct) -> syn::ItemMod
         syn::parse2(entity_data_inherent_impl(args, entity_data_input))
             .expect("entity_data_inherent_impl");
 
-    syn::parse2(quote! {
-        mod #mod_name {
-            use super::*;
+    quote! {
+        #entity_struct
+        #entity_inherent_impl
+        #entity_ingredients_for_impl
+        #entity_in_db_impl
+        #as_id_impl
 
-            #entity_struct
-            #entity_inherent_impl
-            #entity_ingredients_for_impl
-            #entity_in_db_impl
-            #as_id_impl
-
-            #pub_entity_data
-            #entity_data_inherent_impl
-        }
-    })
-    .expect("mod")
+        #entity_data_input
+        #entity_data_inherent_impl
+    }
 }
 
 fn entity_struct(args: &EntityArgs) -> proc_macro2::TokenStream {

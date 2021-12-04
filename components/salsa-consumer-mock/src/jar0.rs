@@ -78,7 +78,8 @@ impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> {}
 
 #[salsa::entity(Entity0 in Jar0)]
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
-struct EntityData0 {
+pub struct EntityData0 {
+    // FIXME: structs and things have to be pub because of Rust's silly rules
     id: u32,
 }
 

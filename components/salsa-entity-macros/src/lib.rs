@@ -10,6 +10,7 @@ extern crate quote;
 use proc_macro::TokenStream;
 
 mod entity;
+mod interned;
 mod jar;
 
 #[proc_macro_attribute]
