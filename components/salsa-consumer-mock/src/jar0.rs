@@ -178,86 +178,84 @@ pub struct EntityData0 {
 // pub(self) use self::__entity0::Entity0;
 // pub(self) use self::__entity0::EntityData0;
 
-// Source:
-//
-// #[salsa::interned(Ty0 in Jar0)]
-// #[derive(Eq, PartialEq, Hash, Debug, Clone)]
-// struct TyData0 {
-//    id: u32
-// }
-
-mod __ty0 {
-    use super::*;
-    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
-    pub struct Ty0(salsa::Id);
-
-    impl salsa::AsId for Ty0 {
-        fn as_id(self) -> salsa::Id {
-            self.0
-        }
-
-        fn from_id(id: salsa::Id) -> Self {
-            Ty0(id)
-        }
-    }
-
-    impl Ty0 {
-        pub fn data<DB: ?Sized>(self, db: &DB) -> &TyData0
-        where
-            DB: salsa::storage::HasJar<Jar0>,
-        {
-            let (jar, runtime) = salsa::storage::HasJar::jar(db);
-            return helper(jar, runtime, self);
-
-            fn helper<'j>(jar: &'j Jar0, runtime: &'j salsa::Runtime, id: Ty0) -> &'j TyData0 {
-                let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Ty0>>::ingredient(jar);
-                ingredients.data(runtime, id)
-            }
-        }
-    }
-
-    impl salsa::storage::IngredientsFor for Ty0 {
-        type Jar = Jar0;
-        type Ingredients = salsa::interned::InternedIngredient<Ty0, TyData0>;
-
-        fn create_ingredients<DB>(
-            ingredients: &mut salsa::routes::Ingredients<DB>,
-        ) -> Self::Ingredients
-        where
-            DB: salsa::storage::HasJars,
-            salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
-        {
-            let index = ingredients.push(|storage| {
-                let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-                <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar)
-            });
-            salsa::interned::InternedIngredient::new(index)
-        }
-    }
-
-    #[derive(Eq, PartialEq, Hash, Debug, Clone)]
-    pub struct TyData0 {
-        pub(super) id: u32,
-    }
-
-    impl TyData0 {
-        pub fn intern<DB: ?Sized>(self, db: &DB) -> Ty0
-        where
-            DB: salsa::storage::HasJar<Jar0>,
-        {
-            let (jar, runtime) = salsa::storage::HasJar::jar(db);
-            return helper(jar, runtime, self);
-
-            fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: TyData0) -> Ty0 {
-                // just to reduce monomorphization cost
-                let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Ty0>>::ingredient(jar);
-                ingredients.intern(runtime, data)
-            }
-        }
-    }
+#[salsa::interned(Ty0 in Jar0)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
+pub struct TyData0 {
+    id: u32,
 }
-pub(self) use self::__ty0::Ty0;
-pub(self) use self::__ty0::TyData0;
+
+// mod __ty0 {
+//     use super::*;
+//     #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
+//     pub struct Ty0(salsa::Id);
+
+//     impl salsa::AsId for Ty0 {
+//         fn as_id(self) -> salsa::Id {
+//             self.0
+//         }
+
+//         fn from_id(id: salsa::Id) -> Self {
+//             Ty0(id)
+//         }
+//     }
+
+//     impl Ty0 {
+//         pub fn data<DB: ?Sized>(self, db: &DB) -> &TyData0
+//         where
+//             DB: salsa::storage::HasJar<Jar0>,
+//         {
+//             let (jar, runtime) = salsa::storage::HasJar::jar(db);
+//             return helper(jar, runtime, self);
+
+//             fn helper<'j>(jar: &'j Jar0, runtime: &'j salsa::Runtime, id: Ty0) -> &'j TyData0 {
+//                 let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Ty0>>::ingredient(jar);
+//                 ingredients.data(runtime, id)
+//             }
+//         }
+//     }
+
+//     impl salsa::storage::IngredientsFor for Ty0 {
+//         type Jar = Jar0;
+//         type Ingredients = salsa::interned::InternedIngredient<Ty0, TyData0>;
+
+//         fn create_ingredients<DB>(
+//             ingredients: &mut salsa::routes::Ingredients<DB>,
+//         ) -> Self::Ingredients
+//         where
+//             DB: salsa::storage::HasJars,
+//             salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+//         {
+//             let index = ingredients.push(|storage| {
+//                 let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+//                 <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar)
+//             });
+//             salsa::interned::InternedIngredient::new(index)
+//         }
+//     }
+
+//     #[derive(Eq, PartialEq, Hash, Debug, Clone)]
+//     pub struct TyData0 {
+//         pub(super) id: u32,
+//     }
+
+//     impl TyData0 {
+//         pub fn intern<DB: ?Sized>(self, db: &DB) -> Ty0
+//         where
+//             DB: salsa::storage::HasJar<Jar0>,
+//         {
+//             let (jar, runtime) = salsa::storage::HasJar::jar(db);
+//             return helper(jar, runtime, self);
+
+//             fn helper(jar: &Jar0, runtime: &salsa::Runtime, data: TyData0) -> Ty0 {
+//                 // just to reduce monomorphization cost
+//                 let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Ty0>>::ingredient(jar);
+//                 ingredients.intern(runtime, data)
+//             }
+//         }
+//     }
+// }
+// pub(self) use self::__ty0::Ty0;
+// pub(self) use self::__ty0::TyData0;
 
 // Source:
 //

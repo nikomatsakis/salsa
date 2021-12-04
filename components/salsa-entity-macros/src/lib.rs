@@ -22,3 +22,8 @@ pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn entity(args: TokenStream, input: TokenStream) -> TokenStream {
     entity::entity(args, input)
 }
+
+#[proc_macro_attribute]
+pub fn interned(args: TokenStream, input: TokenStream) -> TokenStream {
+    interned::interned(args, input)
+}
