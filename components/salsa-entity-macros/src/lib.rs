@@ -9,9 +9,15 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 
+mod entity;
 mod jar;
 
 #[proc_macro_attribute]
 pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {
     jar::jar(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn entity(args: TokenStream, input: TokenStream) -> TokenStream {
+    entity::entity(args, input)
 }

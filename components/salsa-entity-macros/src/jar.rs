@@ -53,11 +53,11 @@ pub(crate) fn has_ingredients_for_impl(
     let index = Literal::u32_unsuffixed(index);
     quote! {
         impl salsa::storage::HasIngredientsFor<#field_ty> for #jar_struct {
-            fn ingredient(&self) -> &<#field_ty as IngredientsFor>::Ingredients {
+            fn ingredient(&self) -> &<#field_ty as salsa::storage::IngredientsFor>::Ingredients {
                 &self.#index
             }
 
-            fn ingredient_mut(&mut self) -> &mut <#field_ty as IngredientsFor>::Ingredients {
+            fn ingredient_mut(&mut self) -> &mut <#field_ty as salsa::storage::IngredientsFor>::Ingredients {
                 &mut self.#index
             }
         }
@@ -86,7 +86,7 @@ pub(crate) fn jar_impl(
                 salsa::storage::Storage<DB>: salsa::storage::HasJar<Self>,
             {
                 #(
-                    let #field_var_names = <#field_tys as IngredientsFor>::create_ingredients(ingredients);
+                    let #field_var_names = <#field_tys as salsa::storage::IngredientsFor>::create_ingredients(ingredients);
                 )*
                 Self(#(#field_var_names),*)
             }
