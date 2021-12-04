@@ -18,6 +18,7 @@ mod lru;
 mod maybe_changed_after;
 mod memo;
 mod set;
+mod store;
 mod sync;
 
 #[allow(dead_code)]
@@ -67,32 +68,6 @@ where
         DatabaseKeyIndex {
             ingredient_index: self.index,
             key_index: k.as_id(),
-        }
-    }
-
-    pub fn store(
-        &mut self,
-        key: C::Key,
-        runtime: &mut Runtime,
-        value: C::Value,
-        durability: Durability,
-    ) {
-        let revision = runtime.current_revision();
-        let memo = Memo {
-            value: Some(value),
-            verified_at: AtomicCell::new(revision),
-            revisions: QueryRevisions {
-                changed_at: revision,
-                durability,
-                inputs: QueryInputs::Tracked {
-                    inputs: runtime.empty_dependencies(),
-                },
-            },
-        };
-
-        if let Some(old_value) = self.memo_map.insert(key, memo) {
-            let durability = old_value.load().revisions.durability;
-            runtime.report_tracked_write(durability);
         }
     }
 }

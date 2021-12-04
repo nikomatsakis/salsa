@@ -1,6 +1,13 @@
-use crate::{entity::EntityInDb, Database, DatabaseKeyIndex};
+use crossbeam::atomic::AtomicCell;
 
-use super::{Configuration, DynDb, FunctionIngredient};
+use crate::{
+    entity::EntityInDb,
+    key::DependencyIndex,
+    runtime::local_state::{QueryInputs, QueryRevisions},
+    Database, DatabaseKeyIndex,
+};
+
+use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};
 
 impl<C> FunctionIngredient<C>
 where
@@ -30,14 +37,10 @@ where
                 changed_at: current_deps.changed_at,
                 durability: current_deps.durability,
                 inputs: QueryInputs::Tracked {
-                    inputs: Some(active_query).into_iter().into(),
+                    inputs: std::iter::once(DependencyIndex::from(active_query)).collect(),
                 },
             },
         };
-
-        if let Some(old_value) = self.memo_map.insert(key, memo) {
-            let durability = old_value.load().revisions.durability;
-            runtime.report_tracked_write(durability);
-        }
+        self.memo_map.insert(key, memo);
     }
 }
