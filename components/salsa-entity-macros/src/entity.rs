@@ -1,8 +1,6 @@
-use proc_macro2::Literal;
-use syn::parse::{Parse, ParseBuffer, ParseStream};
-use syn::punctuated::Punctuated;
+use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Field, FieldsUnnamed, Ident, ItemImpl, ItemStruct, Path, Token, VisPublic, Visibility};
+use syn::{Ident, ItemImpl, ItemStruct, Path, Token, VisPublic, Visibility};
 
 // #[salsa::Entity(#entity_ident in Jar0)]
 // #[derive(Eq, PartialEq, Hash, Debug, Clone)]
