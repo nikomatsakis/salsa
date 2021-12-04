@@ -1,6 +1,6 @@
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{Ident, ItemImpl, ItemStruct, Path, Token, VisPublic, Visibility};
+use syn::{Ident, ItemImpl, ItemStruct, Path, Token};
 
 // #[salsa::interned(Ty0 in Jar0)]
 // #[derive(Eq, PartialEq, Hash, Debug, Clone)]
@@ -12,18 +12,18 @@ pub(crate) fn interned(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let interned_args = syn::parse_macro_input!(args as InternedArgs);
+    let args = syn::parse_macro_input!(args as Args);
     let data_struct = syn::parse_macro_input!(input as ItemStruct);
-    entity_mod(&interned_args, &data_struct).into()
+    entity_mod(&args, &data_struct).into()
 }
 
-pub struct InternedArgs {
+pub struct Args {
     id_ident: Ident,
     _in_token: Token![in],
     jar_path: Path,
 }
 
-impl Parse for InternedArgs {
+impl Parse for Args {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
             id_ident: Parse::parse(input)?,
@@ -33,7 +33,7 @@ impl Parse for InternedArgs {
     }
 }
 
-fn entity_mod(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
+fn entity_mod(args: &Args, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
     let mod_name = syn::Ident::new(
         &format!(
             "__{}",
@@ -63,7 +63,7 @@ fn entity_mod(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro2::Tok
     }
 }
 
-fn id_struct(args: &InternedArgs) -> proc_macro2::TokenStream {
+fn id_struct(args: &Args) -> proc_macro2::TokenStream {
     let interned_ident = &args.id_ident;
     quote! {
         #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
@@ -71,8 +71,8 @@ fn id_struct(args: &InternedArgs) -> proc_macro2::TokenStream {
     }
 }
 
-fn id_inherent_impl(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
-    let InternedArgs {
+fn id_inherent_impl(args: &Args, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
+    let Args {
         id_ident, jar_path, ..
     } = args;
     let data_ident = &data_struct.ident;
@@ -90,7 +90,7 @@ fn id_inherent_impl(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro
     }
 }
 
-fn as_id_impl(args: &InternedArgs) -> proc_macro2::TokenStream {
+fn as_id_impl(args: &Args) -> proc_macro2::TokenStream {
     let id_ident = &args.id_ident;
     quote! {
         impl salsa::AsId for #id_ident {
@@ -106,8 +106,8 @@ fn as_id_impl(args: &InternedArgs) -> proc_macro2::TokenStream {
     }
 }
 
-fn ingredients_for_impl(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
-    let InternedArgs {
+fn ingredients_for_impl(args: &Args, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
+    let Args {
         id_ident, jar_path, ..
     } = args;
     let data_ident = &data_struct.ident;
@@ -135,8 +135,8 @@ fn ingredients_for_impl(args: &InternedArgs, data_struct: &ItemStruct) -> proc_m
     }
 }
 
-fn data_inherent_impl(args: &InternedArgs, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
-    let InternedArgs {
+fn data_inherent_impl(args: &Args, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
+    let Args {
         id_ident, jar_path, ..
     } = args;
     let data_ident = &data_struct.ident;
