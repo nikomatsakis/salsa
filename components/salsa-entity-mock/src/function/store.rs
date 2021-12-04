@@ -2,10 +2,8 @@ use crossbeam::atomic::AtomicCell;
 
 use crate::{
     durability::Durability,
-    entity::EntityInDb,
-    key::DependencyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
-    Database, DatabaseKeyIndex, Runtime,
+    Runtime,
 };
 
 use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};

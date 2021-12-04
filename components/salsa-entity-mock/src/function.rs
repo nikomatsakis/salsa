@@ -1,12 +1,7 @@
-use crossbeam::atomic::AtomicCell;
-
 use crate::{
     cycle::CycleRecoveryStrategy,
-    durability::Durability,
-    function::memo::Memo,
     jar::Jar,
     key::{DatabaseKeyIndex, DependencyIndex},
-    runtime::local_state::{QueryInputs, QueryRevisions},
     Cycle, DbWithJar, Id, Revision,
 };
 
