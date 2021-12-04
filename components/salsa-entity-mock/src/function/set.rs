@@ -4,7 +4,7 @@ use crate::{
     entity::EntityInDb,
     key::DependencyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
-    Database, DatabaseKeyIndex,
+    Database,
 };
 
 use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};
