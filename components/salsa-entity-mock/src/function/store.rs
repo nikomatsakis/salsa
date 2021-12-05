@@ -14,8 +14,8 @@ where
 {
     pub fn store(
         &mut self,
-        key: C::Key,
         runtime: &mut Runtime,
+        key: C::Key,
         value: C::Value,
         durability: Durability,
     ) {

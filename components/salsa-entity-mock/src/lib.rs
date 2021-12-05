@@ -40,3 +40,4 @@ pub use salsa_entity_macros::component;
 pub use salsa_entity_macros::entity;
 pub use salsa_entity_macros::interned;
 pub use salsa_entity_macros::jar;
+pub use salsa_entity_macros::memoized;

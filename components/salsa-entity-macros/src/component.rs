@@ -1,4 +1,4 @@
-use heck::{CamelCase, SnakeCase};
+use heck::CamelCase;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{Ident, ItemImpl, ItemStruct, Token};
@@ -21,7 +21,7 @@ pub(crate) fn component(
     component_contents(&args, &item_impl).into()
 }
 
-pub struct Args {
+struct Args {
     component_ident: Ident,
     _in_token: Token![in],
     jar_ty: syn::Type,
@@ -117,13 +117,6 @@ fn component_struct(args: &Args, fields: &[syn::Field]) -> syn::ItemStruct {
     }
 }
 
-fn value_ty(method: &syn::ImplItemMethod) -> syn::Type {
-    match &method.sig.output {
-        syn::ReturnType::Default => parse_quote!(()),
-        syn::ReturnType::Type(_, ty) => syn::Type::clone(ty),
-    }
-}
-
 fn ingredients_for_component_struct(args: &Args, fields: &[syn::Field]) -> syn::ItemImpl {
     let component_ident = &args.component_ident;
     let jar_ty = &args.jar_ty;
@@ -163,7 +156,7 @@ fn method_configuration(
 ) -> Configuration {
     let jar_ty = args.jar_ty.clone();
     let key_ty = syn::Type::clone(&item_impl.self_ty);
-    let value_ty = value_ty(method);
+    let value_ty = configuration::value_ty(&method.sig);
     let ident_span = method.sig.ident.span();
 
     // FIXME: these are hardcoded for now
@@ -252,9 +245,12 @@ fn method_wrappers(
     };
 
     let block_tokens = match &db_var {
-        Err(msg) => parse_quote_spanned! { method.sig.span() =>
-            {compile_error!(#msg)}
-        },
+        Err(msg) => {
+            let msg = proc_macro2::Literal::string(msg);
+            parse_quote_spanned! { method.sig.span() =>
+                {compile_error!(#msg)}
+            }
+        }
         Ok(db_var) => parse_quote! {
             {
                 let (jar, _) = salsa::storage::HasJar::jar(#db_var);
@@ -271,7 +267,7 @@ fn method_wrappers(
         &format!("set_{}", method.sig.ident),
         method.sig.ident.span(),
     );
-    let value_ty = value_ty(method);
+    let value_ty = configuration::value_ty(&method.sig);
     set_sig.inputs.push(parse_quote! {value: #value_ty});
     set_sig.output = syn::ReturnType::Default;
     let set_block_tokens = match &db_var {

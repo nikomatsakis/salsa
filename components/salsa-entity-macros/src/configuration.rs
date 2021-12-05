@@ -88,3 +88,10 @@ pub(crate) fn panic_cycle_recovery_fn() -> syn::ImplItemMethod {
         }
     }
 }
+
+pub(crate) fn value_ty(sig: &syn::Signature) -> syn::Type {
+    match &sig.output {
+        syn::ReturnType::Default => parse_quote!(()),
+        syn::ReturnType::Type(_, ty) => syn::Type::clone(ty),
+    }
+}

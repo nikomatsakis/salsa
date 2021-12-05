@@ -261,7 +261,7 @@ pub struct TyData0 {
 //
 #[salsa::component(EntityComponent0 in Jar0)]
 impl Entity0 {
-    fn method(self, db: &dyn Jar0Db) -> String {
+    fn method(self, _db: &dyn Jar0Db) -> String {
         format!("Hello, world")
     }
 }
@@ -350,100 +350,100 @@ impl Entity0 {
 
 // Source:
 //
-// #[salsa::storage(in Jar0)]
-// fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
-//     format!("Hello, world")
+#[salsa::memoized(in Jar0)]
+fn my_func(_db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
+    format!("Hello, world ({}, {})", input1, input2)
+}
+
+// #[allow(non_camel_case_types)]
+// pub struct my_func {
+//     intern_map: salsa::interned::InternedIngredient<salsa::Id, (u32, u32)>,
+//     function: salsa::function::FunctionIngredient<my_func>,
 // }
 
-#[allow(non_camel_case_types)]
-pub struct my_func {
-    intern_map: salsa::interned::InternedIngredient<salsa::Id, (u32, u32)>,
-    function: salsa::function::FunctionIngredient<my_func>,
-}
+// impl salsa::function::Configuration for my_func {
+//     type Jar = Jar0;
 
-impl salsa::function::Configuration for my_func {
-    type Jar = Jar0;
+//     type Key = salsa::id::Id;
 
-    type Key = salsa::id::Id;
+//     type Value = String;
 
-    type Value = String;
+//     const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy =
+//         salsa::cycle::CycleRecoveryStrategy::Panic;
 
-    const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy =
-        salsa::cycle::CycleRecoveryStrategy::Panic;
+//     const MEMOIZE_VALUE: bool = true;
 
-    const MEMOIZE_VALUE: bool = true;
+//     fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
+//         old_value == new_value
+//     }
 
-    fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
-        old_value == new_value
-    }
+//     fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
+//         fn __secret__(_db: &dyn Jar0Db, _input1: u32, _input2: u32) -> String {
+//             format!("Hello, world")
+//         }
 
-    fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
-        fn __secret__(_db: &dyn Jar0Db, _input1: u32, _input2: u32) -> String {
-            format!("Hello, world")
-        }
+//         let (jar, runtime) = salsa::storage::HasJar::jar(db);
+//         let my_func: &my_func =
+//             <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
+//         let key = my_func.intern_map.data(runtime, key).clone();
+//         __secret__(db, key.0, key.1)
+//     }
 
-        let (jar, runtime) = salsa::storage::HasJar::jar(db);
-        let my_func: &my_func =
-            <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
-        let key = my_func.intern_map.data(runtime, key).clone();
-        __secret__(db, key.0, key.1)
-    }
+//     fn recover_from_cycle(
+//         _db: &salsa::function::DynDb<Self>,
+//         _cycle: &salsa::Cycle,
+//         _key: Self::Key,
+//     ) -> Self::Value {
+//         panic!()
+//     }
+// }
 
-    fn recover_from_cycle(
-        _db: &salsa::function::DynDb<Self>,
-        _cycle: &salsa::Cycle,
-        _key: Self::Key,
-    ) -> Self::Value {
-        panic!()
-    }
-}
+// impl salsa::storage::IngredientsFor for my_func {
+//     type Ingredients = Self;
+//     type Jar = Jar0;
 
-impl salsa::storage::IngredientsFor for my_func {
-    type Ingredients = Self;
-    type Jar = Jar0;
+//     fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
+//     where
+//         DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
+//         salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+//     {
+//         let index = ingredients.push(|storage| {
+//             let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+//             let ingredients =
+//                 <Jar0 as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
+//             &ingredients.intern_map
+//         });
+//         let intern_map = salsa::interned::InternedIngredient::new(index);
 
-    fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
-    where
-        DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
-        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
-    {
-        let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-            let ingredients =
-                <Jar0 as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
-            &ingredients.intern_map
-        });
-        let intern_map = salsa::interned::InternedIngredient::new(index);
+//         let index = ingredients.push(|storage| {
+//             let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+//             let ingredients =
+//                 <Jar0 as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
+//             &ingredients.function
+//         });
+//         let function = salsa::function::FunctionIngredient::new(index);
 
-        let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-            let ingredients =
-                <Jar0 as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
-            &ingredients.function
-        });
-        let function = salsa::function::FunctionIngredient::new(index);
+//         my_func {
+//             intern_map,
+//             function,
+//         }
+//     }
+// }
 
-        my_func {
-            intern_map,
-            function,
-        }
-    }
-}
+// #[allow(dead_code)]
+// fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
+//     let (jar, runtime) = salsa::storage::HasJar::jar(db);
+//     let my_func: &my_func = <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
+//     let key = my_func.intern_map.intern(runtime, (input1, input2));
+//     my_func.function.fetch(db, key)
+// }
 
-#[allow(dead_code)]
-fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
-    let (jar, runtime) = salsa::storage::HasJar::jar(db);
-    let my_func: &my_func = <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient(jar);
-    let key = my_func.intern_map.intern(runtime, (input1, input2));
-    my_func.function.fetch(db, key)
-}
-
-impl my_func {
-    fn set(db: &mut dyn Jar0Db, input1: u32, input2: u32, value: String) {
-        let (jar, runtime) = salsa::storage::HasJar::jar_mut(db);
-        let my_func: &mut my_func =
-            <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient_mut(jar);
-        let id = my_func.intern_map.intern(runtime, (input1, input2));
-        my_func.function.store(id, runtime, value, Durability::LOW);
-    }
-}
+// impl my_func {
+//     fn set(db: &mut dyn Jar0Db, input1: u32, input2: u32, value: String) {
+//         let (jar, runtime) = salsa::storage::HasJar::jar_mut(db);
+//         let my_func: &mut my_func =
+//             <Jar0 as salsa::storage::HasIngredientsFor<my_func>>::ingredient_mut(jar);
+//         let id = my_func.intern_map.intern(runtime, (input1, input2));
+//         my_func.function.store(id, runtime, value, Durability::LOW);
+//     }
+// }

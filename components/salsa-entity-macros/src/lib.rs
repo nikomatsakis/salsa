@@ -30,6 +30,7 @@ mod configuration;
 mod entity;
 mod interned;
 mod jar;
+mod memoized;
 
 #[proc_macro_attribute]
 pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -49,4 +50,9 @@ pub fn interned(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn component(args: TokenStream, input: TokenStream) -> TokenStream {
     component::component(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn memoized(args: TokenStream, input: TokenStream) -> TokenStream {
+    memoized::memoized(args, input)
 }
