@@ -259,95 +259,94 @@ pub struct TyData0 {
 
 // Source:
 //
-// #[salsa::component(EntityComponent0 in Jar0)]
-// impl Entity0 {
-//     fn method(self, db: &dyn Jar0Db) -> String {
-//         format!("Hello, world")
+#[salsa::component(EntityComponent0 in Jar0)]
+impl Entity0 {
+    fn method(self, db: &dyn Jar0Db) -> String {
+        format!("Hello, world")
+    }
+}
+
+// pub struct EntityComponent0 {
+//     method: salsa::function::FunctionIngredient<EntityComponent0_method>,
+// }
+
+// #[allow(non_camel_case_types)]
+// struct EntityComponent0_method;
+
+// impl salsa::function::Configuration for EntityComponent0_method {
+//     type Jar = Jar0;
+
+//     type Key = Entity0;
+
+//     type Value = String;
+
+//     const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy =
+//         salsa::cycle::CycleRecoveryStrategy::Panic;
+
+//     const MEMOIZE_VALUE: bool = true;
+
+//     fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
+//         v1 == v2
+//     }
+
+//     fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
+//         trait __Secret__ {
+//             fn method(self, db: &dyn Jar0Db) -> String;
+//         }
+
+//         impl __Secret__ for Entity0 {
+//             fn method(self, _db: &dyn Jar0Db) -> String {
+//                 format!("Hello, world")
+//             }
+//         }
+
+//         <Entity0 as __Secret__>::method(key, db)
+//     }
+
+//     fn recover_from_cycle(
+//         _db: &salsa::function::DynDb<Self>,
+//         _cycle: &salsa::Cycle,
+//         _key: Self::Key,
+//     ) -> Self::Value {
+//         panic!()
 //     }
 // }
 
-pub struct EntityComponent0 {
-    method: salsa::function::FunctionIngredient<EntityComponent0_method>,
-}
+// impl salsa::storage::IngredientsFor for EntityComponent0 {
+//     type Jar = Jar0;
+//     type Ingredients = Self;
 
-#[allow(non_camel_case_types)]
-struct EntityComponent0_method;
+//     fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
+//     where
+//         DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
+//         salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+//     {
+//         let index = ingredients.push(|storage| {
+//             let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+//             let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
+//             &ingredients.method
+//         });
+//         let method = salsa::function::FunctionIngredient::new(index);
 
-impl salsa::function::Configuration for EntityComponent0_method {
-    type Jar = Jar0;
+//         Self { method }
+//     }
+// }
 
-    type Key = Entity0;
+// impl Entity0 {
+//     fn method(self, db: &dyn Jar0Db) -> String {
+//         let (jar, _) = salsa::storage::HasJar::jar(db);
+//         let component: &EntityComponent0 =
+//             <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
+//         component.method.fetch(db, self)
+//     }
 
-    type Value = String;
-
-    const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy =
-        salsa::cycle::CycleRecoveryStrategy::Panic;
-
-    const MEMOIZE_VALUE: bool = true;
-
-    fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
-        v1 == v2
-    }
-
-    fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
-        trait __Secret__ {
-            fn method(self, db: &dyn Jar0Db) -> String;
-        }
-
-        impl __Secret__ for Entity0 {
-            fn method(self, _db: &dyn Jar0Db) -> String {
-                format!("Hello, world")
-            }
-        }
-
-        <Entity0 as __Secret__>::method(key, db)
-    }
-
-    fn recover_from_cycle(
-        _db: &salsa::function::DynDb<Self>,
-        _cycle: &salsa::Cycle,
-        _key: Self::Key,
-    ) -> Self::Value {
-        panic!()
-    }
-}
-
-impl salsa::storage::IngredientsFor for EntityComponent0 {
-    type Jar = Jar0;
-    type Ingredients = Self;
-
-    fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
-    where
-        DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
-        salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
-    {
-        let index = ingredients.push(|storage| {
-            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-            let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
-            &ingredients.method
-        });
-        let method = salsa::function::FunctionIngredient::new(index);
-
-        Self { method }
-    }
-}
-
-impl Entity0 {
-    #[allow(dead_code)]
-    fn method(self, db: &dyn Jar0Db) -> String {
-        let (jar, _) = salsa::storage::HasJar::jar(db);
-        let component: &EntityComponent0 =
-            <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-        component.method.fetch(db, self)
-    }
-
-    fn set_method(self, db: &dyn Jar0Db, value: String) {
-        let (jar, _) = salsa::storage::HasJar::jar(db);
-        let component: &EntityComponent0 =
-            <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-        component.method.set(db, self, value)
-    }
-}
+//     fn set_method(self, db: &dyn Jar0Db, value: String) {
+//         let (jar, _) = salsa::storage::HasJar::jar(db);
+//         let component: &EntityComponent0 =
+//             <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
+//         component.method.set(db, self, value)
+//     }
+// }
 
 // Source:
 //

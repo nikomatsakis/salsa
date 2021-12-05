@@ -40,12 +40,14 @@ impl Parse for Args {
 fn component_contents(args: &Args, item_impl: &ItemImpl) -> proc_macro2::TokenStream {
     let (impl_items, items, fields) = impl_items_and_method_structs(args, item_impl);
     let component_struct: ItemStruct = component_struct(args, &fields);
+    let ingredients = ingredients_for_component_struct(args, &fields);
 
     let mut new_impl = item_impl.clone();
     new_impl.items = impl_items;
 
     quote! {
         #component_struct
+        #ingredients
         #new_impl
         #(#items)*
     }
@@ -119,6 +121,38 @@ fn value_ty(method: &syn::ImplItemMethod) -> syn::Type {
     match &method.sig.output {
         syn::ReturnType::Default => parse_quote!(()),
         syn::ReturnType::Type(_, ty) => syn::Type::clone(ty),
+    }
+}
+
+fn ingredients_for_component_struct(args: &Args, fields: &[syn::Field]) -> syn::ItemImpl {
+    let component_ident = &args.component_ident;
+    let jar_ty = &args.jar_ty;
+    let field_names = fields.iter().map(|f| &f.ident);
+
+    parse_quote! {
+        impl salsa::storage::IngredientsFor for #component_ident {
+            type Jar = #jar_ty;
+            type Ingredients = Self;
+
+            fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
+            where
+                DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
+                salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+            {
+                Self {
+                    #(
+                        #field_names: {
+                            let index = ingredients.push(|storage| {
+                                let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+                                let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
+                                &ingredients.method
+                            });
+                            salsa::function::FunctionIngredient::new(index)
+                        },
+                    )*
+                }
+            }
+        }
     }
 }
 
@@ -219,13 +253,15 @@ fn method_wrappers(
 
     let block_tokens = match &db_var {
         Err(msg) => parse_quote_spanned! { method.sig.span() =>
-            compile_error!(#msg)
+            {compile_error!(#msg)}
         },
         Ok(db_var) => parse_quote! {
-            let (jar, _) = salsa::storage::HasJar::jar(#db_var);
-            let component: &EntityComponent0 =
-                <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-            component.method.fetch(#db_var, self)
+            {
+                let (jar, _) = salsa::storage::HasJar::jar(#db_var);
+                let component: &EntityComponent0 =
+                    <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
+                component.method.fetch(#db_var, self)
+            }
         },
     };
 
@@ -239,12 +275,14 @@ fn method_wrappers(
     set_sig.inputs.push(parse_quote! {value: #value_ty});
     set_sig.output = syn::ReturnType::Default;
     let set_block_tokens = match &db_var {
-        Err(_) => parse_quote! { () },
+        Err(_) => parse_quote! { {} },
         Ok(db_var) => parse_quote! {
-            let (jar, _) = salsa::storage::HasJar::jar(#db_var);
-            let component: &EntityComponent0 =
-                <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-            component.method.set(#db_var, self, value)
+            {
+                let (jar, _) = salsa::storage::HasJar::jar(#db_var);
+                let component: &EntityComponent0 =
+                    <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
+                component.method.set(#db_var, self, value)
+            }
         },
     };
 
