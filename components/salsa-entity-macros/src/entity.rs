@@ -78,7 +78,7 @@ fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenS
             {
                 let (jar, runtime) = salsa::storage::HasJar::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #id_ident >>::ingredient(jar);
-                ingredients.id_data(runtime, self)
+                ingredients.entity_data(runtime, self)
             }
         }
     }
