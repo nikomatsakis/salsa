@@ -9,6 +9,8 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 
+mod component;
+mod configuration;
 mod entity;
 mod interned;
 mod jar;
@@ -26,4 +28,9 @@ pub fn entity(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn interned(args: TokenStream, input: TokenStream) -> TokenStream {
     interned::interned(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn component(args: TokenStream, input: TokenStream) -> TokenStream {
+    component::component(args, input)
 }
