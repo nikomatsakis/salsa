@@ -38,12 +38,16 @@ impl Parse for Args {
 }
 
 fn component_contents(args: &Args, item_impl: &ItemImpl) -> proc_macro2::TokenStream {
-    let component_struct: ItemStruct =
-        syn::parse2(component_struct(args)).expect("id_struct parse failed");
+    let (impl_items, items, fields) = impl_items_and_method_structs(args, item_impl);
+    let component_struct: ItemStruct = component_struct(args, &fields);
+
+    let mut new_impl = item_impl.clone();
+    new_impl.items = impl_items;
 
     quote! {
         #component_struct
-
+        #new_impl
+        #(#items)*
     }
 }
 
@@ -67,25 +71,34 @@ fn impl_items_and_method_structs(
                     &format!("{}{}", args.component_ident, method_name).to_camel_case(),
                     method_name.span(),
                 );
-                items.push(
-                    syn::parse2(quote! {
-                        struct #struct_name;
-                    })
-                    .unwrap(),
-                );
+                items.push(parse_quote! {
+                    struct #struct_name;
+                });
 
                 // Generate the `impl Configuration for struct" item
-                let struct_ty = syn::parse2(quote! { #struct_name }).unwrap();
+                let struct_ty = parse_quote! { #struct_name };
                 let configuration = method_configuration(args, item_impl, method);
                 items.push(configuration.to_impl(&struct_ty).into());
 
-                impl_items.push(syn::parse2(quote! {}).unwrap());
+                // Generate the getter/setter methods
+                let (getter, setter) = method_wrappers(args, item_impl, method);
+                impl_items.push(getter.into());
+                impl_items.push(setter.into());
+
+                // Generate the field storing the ingredient
+                fields.push(syn::Field {
+                    attrs: vec![],
+                    vis: syn::Visibility::Inherited,
+                    ident: Some(method_name.clone()),
+                    colon_token: Some(Token![:](method_name.span())),
+                    ty: parse_quote!(salsa::function::FunctionIngredient<#struct_name>),
+                });
             }
 
             _ => {
-                impl_items.push(syn::parse2(quote_spanned! {
+                impl_items.push(parse_quote_spanned! {
                     impl_item.span() => compile_error!("only constants, methods, and types are permitted")
-                }).unwrap());
+                });
             }
         }
     }
@@ -93,18 +106,18 @@ fn impl_items_and_method_structs(
     (impl_items, items, fields)
 }
 
-fn component_struct(args: &Args) -> proc_macro2::TokenStream {
+fn component_struct(args: &Args, fields: &[syn::Field]) -> syn::ItemStruct {
     let component_ident = &args.component_ident;
-    quote! {
+    parse_quote! {
         pub struct #component_ident {
-            method: salsa::function::FunctionIngredient<EntityComponent0_method>,
+            #(#fields),*
         }
     }
 }
 
 fn value_ty(method: &syn::ImplItemMethod) -> syn::Type {
     match &method.sig.output {
-        syn::ReturnType::Default => syn::parse2(quote! { () }).unwrap(),
+        syn::ReturnType::Default => parse_quote!(()),
         syn::ReturnType::Type(_, ty) => syn::Type::clone(ty),
     }
 }
@@ -136,7 +149,7 @@ fn method_configuration(
         &format!("__{}__", method.sig.ident.to_string().to_camel_case()),
         ident_span,
     );
-    let execute_fn: syn::ImplItemMethod = syn::parse2(quote! {
+    let execute_fn: syn::ImplItemMethod = parse_quote! {
         fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
             trait #secret_trait_name {
                 #trait_item
@@ -148,8 +161,7 @@ fn method_configuration(
 
             <Self::Key as #secret_trait_name>::method(key, db)
         }
-    })
-    .unwrap();
+    };
 
     let backdate_fn = configuration::should_backdate_value_fn(memoize_value);
     let recover_fn = configuration::panic_cycle_recovery_fn();
@@ -206,10 +218,10 @@ fn method_wrappers(
     };
 
     let block_tokens = match &db_var {
-        Err(msg) => quote_spanned! { method.sig.span() =>
+        Err(msg) => parse_quote_spanned! { method.sig.span() =>
             compile_error!(#msg)
         },
-        Ok(db_var) => quote! {
+        Ok(db_var) => parse_quote! {
             let (jar, _) = salsa::storage::HasJar::jar(#db_var);
             let component: &EntityComponent0 =
                 <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
@@ -224,13 +236,11 @@ fn method_wrappers(
         method.sig.ident.span(),
     );
     let value_ty = value_ty(method);
-    set_sig
-        .inputs
-        .push(syn::parse2(quote! {value: #value_ty}).unwrap());
+    set_sig.inputs.push(parse_quote! {value: #value_ty});
     set_sig.output = syn::ReturnType::Default;
     let set_block_tokens = match &db_var {
-        Err(_) => quote! { () },
-        Ok(db_var) => quote! {
+        Err(_) => parse_quote! { () },
+        Ok(db_var) => parse_quote! {
             let (jar, _) = salsa::storage::HasJar::jar(#db_var);
             let component: &EntityComponent0 =
                 <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
@@ -244,14 +254,14 @@ fn method_wrappers(
             vis: method.vis.clone(),
             defaultness: method.defaultness.clone(),
             sig: method.sig.clone(),
-            block: syn::parse2(block_tokens).unwrap(),
+            block: block_tokens,
         },
         syn::ImplItemMethod {
             attrs: method.attrs.clone(),
             vis: method.vis.clone(),
             defaultness: method.defaultness.clone(),
             sig: set_sig,
-            block: syn::parse2(set_block_tokens).unwrap(),
+            block: set_block_tokens,
         },
     )
 }

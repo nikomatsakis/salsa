@@ -23,7 +23,7 @@ impl Configuration {
             execute_fn,
             recover_fn,
         } = self;
-        syn::parse2(quote! {
+        parse_quote! {
             impl salsa::function::Configuration for #self_ty {
                 type Jar = #jar_ty;
                 type Key = #key_ty;
@@ -34,8 +34,7 @@ impl Configuration {
                 #execute_fn
                 #recover_fn
             }
-        })
-        .unwrap()
+        }
     }
 }
 
@@ -61,27 +60,25 @@ impl quote::ToTokens for CycleRecoveryStrategy {
 /// whether this value is memoized or not.
 pub(crate) fn should_backdate_value_fn(memoize_value: bool) -> syn::ImplItemMethod {
     if memoize_value {
-        syn::parse2(quote! {
+        parse_quote! {
             fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
                 v1 == v2
             }
-        })
-        .unwrap()
+        }
     } else {
         // If there are no memoized values, tben we should never consider backdating.
-        syn::parse2(quote! {
+        parse_quote! {
             fn should_backdate_value(_v1: &Self::Value, _v2: &Self::Value) -> bool {
                 unreachable!()
             }
-        })
-        .unwrap()
+        }
     }
 }
 
 /// Returns an appropriate definition for `recover_from_cycle` for cases where
 /// the cycle recovery is panic.
 pub(crate) fn panic_cycle_recovery_fn() -> syn::ImplItemMethod {
-    syn::parse2(quote! {
+    parse_quote! {
         fn recover_from_cycle(
             _db: &salsa::function::DynDb<Self>,
             _cycle: &salsa::Cycle,
@@ -89,6 +86,5 @@ pub(crate) fn panic_cycle_recovery_fn() -> syn::ImplItemMethod {
         ) -> Self::Value {
             panic!()
         }
-    })
-    .unwrap()
+    }
 }

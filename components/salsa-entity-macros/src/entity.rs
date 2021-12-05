@@ -33,15 +33,12 @@ impl Parse for Args {
 }
 
 fn entity_contents(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
-    let id_struct: ItemStruct = syn::parse2(id_struct(args)).expect("id_struct parse failed");
-    let id_inherent_impl: ItemImpl =
-        syn::parse2(id_inherent_impl(args, data_input)).expect("id_inherent_impl parse");
-    let id_ingredients_for_impl: ItemImpl =
-        syn::parse2(id_ingredients_for_impl(args, data_input)).expect("id_ingredients_for_impl");
-    let id_in_db_impl: ItemImpl = syn::parse2(id_in_db_impl(args)).expect("id_in_db_impl");
-    let as_id_impl: ItemImpl = syn::parse2(as_id_impl(args)).expect("as_id_impl");
-    let data_inherent_impl: ItemImpl =
-        syn::parse2(data_inherent_impl(args, data_input)).expect("data_inherent_impl");
+    let id_struct = id_struct(args);
+    let id_inherent_impl = id_inherent_impl(args, data_input);
+    let id_ingredients_for_impl = id_ingredients_for_impl(args, data_input);
+    let id_in_db_impl = id_in_db_impl(args);
+    let as_id_impl = as_id_impl(args);
+    let data_inherent_impl = data_inherent_impl(args, data_input);
 
     quote! {
         #id_struct
@@ -55,20 +52,20 @@ fn entity_contents(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenSt
     }
 }
 
-fn id_struct(args: &Args) -> proc_macro2::TokenStream {
+fn id_struct(args: &Args) -> syn::ItemStruct {
     let id_ident = &args.id_ident;
-    quote! {
+    parse_quote! {
         #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
         pub struct #id_ident(salsa::Id);
     }
 }
 
-fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
+fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
     let data_ident = &data_input.ident;
-    quote! {
+    parse_quote! {
         impl #id_ident {
             pub fn data<DB: ?Sized>(self, db: &DB) -> & #data_ident
             where
@@ -82,9 +79,9 @@ fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenS
     }
 }
 
-fn as_id_impl(args: &Args) -> proc_macro2::TokenStream {
+fn as_id_impl(args: &Args) -> syn::ItemImpl {
     let id_ident = &args.id_ident;
-    quote! {
+    parse_quote! {
         impl salsa::AsId for #id_ident {
             fn as_id(self) -> salsa::Id {
                 self.0
@@ -94,15 +91,14 @@ fn as_id_impl(args: &Args) -> proc_macro2::TokenStream {
                 #id_ident(id)
             }
         }
-
     }
 }
 
-fn id_in_db_impl(args: &Args) -> proc_macro2::TokenStream {
+fn id_in_db_impl(args: &Args) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
-    quote! {
+    parse_quote! {
         impl<DB> salsa::entity::EntityInDb<DB> for #id_ident
         where
             DB: ?Sized + salsa::DbWithJar<#jar_path>,
@@ -116,12 +112,12 @@ fn id_in_db_impl(args: &Args) -> proc_macro2::TokenStream {
     }
 }
 
-fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
+fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
     let id_data = &data_input.ident;
-    quote! {
+    parse_quote! {
         impl salsa::storage::IngredientsFor for #id_ident {
             type Jar = #jar_path;
             type Ingredients = salsa::entity::EntityIngredient<#id_ident, #id_data>;
@@ -149,12 +145,12 @@ fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2:
     }
 }
 
-fn data_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
+fn data_inherent_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
     let data_ident = &data_input.ident;
-    quote! {
+    parse_quote! {
         impl #data_ident {
             pub fn new<DB: ?Sized>(self, db: &DB) -> #id_ident
             where

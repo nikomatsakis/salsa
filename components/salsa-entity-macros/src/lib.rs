@@ -9,6 +9,22 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 
+macro_rules! parse_quote {
+    ($($inp:tt)*) => {
+        syn::parse2(quote!{$($inp)*}).unwrap_or_else(|err| {
+            panic!("failed to parse at {}:{}:{}: {}", file!(), line!(), column!(), err)
+        })
+    }
+}
+
+macro_rules! parse_quote_spanned {
+    ($($inp:tt)*) => {
+        syn::parse2(quote_spanned!{$($inp)*}).unwrap_or_else(|err| {
+            panic!("failed to parse at {}:{}:{}: {}", file!(), line!(), column!(), err)
+        })
+    }
+}
+
 mod component;
 mod configuration;
 mod entity;
