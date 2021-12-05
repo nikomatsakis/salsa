@@ -1,5 +1,4 @@
 use syn::parse::{Parse, ParseStream};
-use syn::spanned::Spanned;
 use syn::{Ident, ItemImpl, ItemStruct, Path, Token};
 
 // #[salsa::interned(Ty0 in Jar0)]
@@ -34,14 +33,6 @@ impl Parse for Args {
 }
 
 fn entity_mod(args: &Args, data_struct: &ItemStruct) -> proc_macro2::TokenStream {
-    let mod_name = syn::Ident::new(
-        &format!(
-            "__{}",
-            heck::SnakeCase::to_snake_case(&*args.id_ident.to_string())
-        ),
-        args.id_ident.span(),
-    );
-
     let interned_struct: ItemStruct =
         syn::parse2(id_struct(args)).expect("entity_struct parse failed");
     let id_inherent_impl: ItemImpl =

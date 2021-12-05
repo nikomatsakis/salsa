@@ -65,9 +65,7 @@ fn id_struct(args: &Args) -> proc_macro2::TokenStream {
 
 fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
     let Args {
-        id_ident: id_ident,
-        jar_path,
-        ..
+        id_ident, jar_path, ..
     } = args;
     let data_ident = &data_input.ident;
     quote! {
@@ -102,9 +100,7 @@ fn as_id_impl(args: &Args) -> proc_macro2::TokenStream {
 
 fn id_in_db_impl(args: &Args) -> proc_macro2::TokenStream {
     let Args {
-        id_ident: id_ident,
-        jar_path,
-        ..
+        id_ident, jar_path, ..
     } = args;
     quote! {
         impl<DB> salsa::entity::EntityInDb<DB> for #id_ident
@@ -122,9 +118,7 @@ fn id_in_db_impl(args: &Args) -> proc_macro2::TokenStream {
 
 fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
     let Args {
-        id_ident: id_ident,
-        jar_path,
-        ..
+        id_ident, jar_path, ..
     } = args;
     let id_data = &data_input.ident;
     quote! {
@@ -157,9 +151,7 @@ fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2:
 
 fn data_inherent_impl(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
     let Args {
-        id_ident: id_ident,
-        jar_path,
-        ..
+        id_ident, jar_path, ..
     } = args;
     let data_ident = &data_input.ident;
     quote! {
