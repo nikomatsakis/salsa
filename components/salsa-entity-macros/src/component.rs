@@ -137,8 +137,8 @@ fn ingredients_for_component_struct(args: &Args, fields: &[syn::Field]) -> syn::
                         #field_names: {
                             let index = ingredients.push(|storage| {
                                 let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-                                let ingredients = <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
-                                &ingredients.method
+                                let ingredients = <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
+                                &ingredients.#field_names
                             });
                             salsa::function::FunctionIngredient::new(index)
                         },
@@ -157,6 +157,7 @@ fn method_configuration(
     let jar_ty = args.jar_ty.clone();
     let key_ty = syn::Type::clone(&item_impl.self_ty);
     let value_ty = configuration::value_ty(&method.sig);
+    let method_name = &method.sig.ident;
     let ident_span = method.sig.ident.span();
 
     // FIXME: these are hardcoded for now
@@ -186,7 +187,7 @@ fn method_configuration(
                 #method
             }
 
-            <Self::Key as #secret_trait_name>::method(key, db)
+            <Self::Key as #secret_trait_name>::#method_name(key, db)
         }
     };
 
@@ -229,6 +230,9 @@ fn method_wrappers(
     // type checking and validation: but we *do* need to check that the method has at
     // least two arguments and get the name of the `db` parameter.
 
+    let component = &args.component_ident;
+    let method_ident = &method.sig.ident;
+
     // Find the name `db` that user gave to the second argument.
     // They can't have done any "funny business" (such as a pattern
     // like `(db, _)` or whatever) or we get an error.
@@ -254,9 +258,8 @@ fn method_wrappers(
         Ok(db_var) => parse_quote! {
             {
                 let (jar, _) = salsa::storage::HasJar::jar(#db_var);
-                let component: &EntityComponent0 =
-                    <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-                component.method.fetch(#db_var, self)
+                let component = <_ as salsa::storage::HasIngredientsFor<#component>>::ingredient(jar);
+                component.#method_ident.fetch(#db_var, self)
             }
         },
     };
@@ -275,9 +278,8 @@ fn method_wrappers(
         Ok(db_var) => parse_quote! {
             {
                 let (jar, _) = salsa::storage::HasJar::jar(#db_var);
-                let component: &EntityComponent0 =
-                    <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
-                component.method.set(#db_var, self, value)
+                let component = <_ as salsa::storage::HasIngredientsFor<#component>>::ingredient(jar);
+                component.#method_ident.set(#db_var, self, value)
             }
         },
     };

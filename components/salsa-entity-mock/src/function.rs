@@ -44,6 +44,13 @@ pub trait Configuration {
     }
 }
 
+/// True if `old_value == new_value`. Invoked by the generated
+/// code for `should_backdate_value` so as to give a better
+/// error message.
+pub fn should_backdate_value<V: Eq>(old_value: &V, new_value: &V) -> bool {
+    old_value == new_value
+}
+
 pub type DynDb<'bound, C> = <<C as Configuration>::Jar as Jar<'bound>>::DynDb;
 
 impl<C> FunctionIngredient<C>

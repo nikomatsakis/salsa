@@ -62,7 +62,7 @@ pub(crate) fn should_backdate_value_fn(memoize_value: bool) -> syn::ImplItemMeth
     if memoize_value {
         parse_quote! {
             fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
-                v1 == v2
+                salsa::function::should_backdate_value(v1, v2)
             }
         }
     } else {

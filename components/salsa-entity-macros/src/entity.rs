@@ -1,5 +1,7 @@
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemImpl, ItemStruct, Path, Token};
+use syn::{Ident, Path, Token};
+
+use crate::data_item::DataItem;
 
 // #[salsa::Entity(#id_ident in Jar0)]
 // #[derive(Eq, PartialEq, Hash, Debug, Clone)]
@@ -12,8 +14,8 @@ pub(crate) fn entity(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let args = syn::parse_macro_input!(args as Args);
-    let data_struct = syn::parse_macro_input!(input as ItemStruct);
-    entity_contents(&args, &data_struct).into()
+    let data_item = syn::parse_macro_input!(input as DataItem);
+    entity_contents(&args, &data_item).into()
 }
 
 pub struct Args {
@@ -32,13 +34,13 @@ impl Parse for Args {
     }
 }
 
-fn entity_contents(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenStream {
+fn entity_contents(args: &Args, data_item: &DataItem) -> proc_macro2::TokenStream {
     let id_struct = id_struct(args);
-    let id_inherent_impl = id_inherent_impl(args, data_input);
-    let id_ingredients_for_impl = id_ingredients_for_impl(args, data_input);
+    let id_inherent_impl = id_inherent_impl(args, data_item);
+    let id_ingredients_for_impl = id_ingredients_for_impl(args, data_item);
     let id_in_db_impl = id_in_db_impl(args);
     let as_id_impl = as_id_impl(args);
-    let data_inherent_impl = data_inherent_impl(args, data_input);
+    let data_inherent_impl = data_inherent_impl(args, data_item);
 
     quote! {
         #id_struct
@@ -47,7 +49,7 @@ fn entity_contents(args: &Args, data_input: &ItemStruct) -> proc_macro2::TokenSt
         #id_in_db_impl
         #as_id_impl
 
-        #data_input
+        #data_item
         #data_inherent_impl
     }
 }
@@ -60,11 +62,11 @@ fn id_struct(args: &Args) -> syn::ItemStruct {
     }
 }
 
-fn id_inherent_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
+fn id_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
-    let data_ident = &data_input.ident;
+    let data_ident = data_item.ident();
     parse_quote! {
         impl #id_ident {
             pub fn data<DB: ?Sized>(self, db: &DB) -> & #data_ident
@@ -112,11 +114,11 @@ fn id_in_db_impl(args: &Args) -> syn::ItemImpl {
     }
 }
 
-fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
+fn id_ingredients_for_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
-    let id_data = &data_input.ident;
+    let id_data = data_item.ident();
     parse_quote! {
         impl salsa::storage::IngredientsFor for #id_ident {
             type Jar = #jar_path;
@@ -132,11 +134,11 @@ fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImp
                 let index = ingredients.push_mut(
                     |storage| {
                         let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
-                        <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar)
+                        <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar)
                     },
                     |storage| {
                         let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar_mut(storage);
-                        <Jar0 as salsa::storage::HasIngredientsFor<Self>>::ingredient_mut(jar)
+                        <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient_mut(jar)
                     },
                 );
                 salsa::entity::EntityIngredient::new(index)
@@ -145,11 +147,11 @@ fn id_ingredients_for_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImp
     }
 }
 
-fn data_inherent_impl(args: &Args, data_input: &ItemStruct) -> syn::ItemImpl {
+fn data_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
     let Args {
         id_ident, jar_path, ..
     } = args;
-    let data_ident = &data_input.ident;
+    let data_ident = data_item.ident();
     parse_quote! {
         impl #data_ident {
             pub fn new<DB: ?Sized>(self, db: &DB) -> #id_ident

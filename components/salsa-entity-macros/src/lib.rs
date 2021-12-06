@@ -27,6 +27,7 @@ macro_rules! parse_quote_spanned {
 
 mod component;
 mod configuration;
+mod data_item;
 mod entity;
 mod interned;
 mod jar;
