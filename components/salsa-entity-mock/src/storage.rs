@@ -75,11 +75,11 @@ where
         self.runtime.new_revision();
 
         let ingredients = self.ingredients.clone();
+        let shared = Arc::get_mut(&mut self.shared).unwrap();
         for route in ingredients.mut_routes() {
-            route(self).reset_for_new_revision();
+            route(&mut shared.jars).reset_for_new_revision();
         }
 
-        let shared = Arc::get_mut(&mut self.shared).unwrap();
         (&mut shared.jars, &mut self.runtime)
     }
 
@@ -109,7 +109,7 @@ where
 
     pub fn ingredient(&self, ingredient_index: IngredientIndex) -> &dyn Ingredient<DB> {
         let route = self.ingredients.route(ingredient_index);
-        route(self)
+        route(&self.shared.jars)
     }
 }
 
@@ -138,6 +138,12 @@ pub trait DbWithJar<J>: HasJar<J> + Database {
     fn as_jar_db<'db>(&'db self) -> &<J as Jar<'db>>::DynDb
     where
         J: Jar<'db>;
+}
+
+pub trait JarFromJars<J>: HasJars {
+    fn jar_from_jars<'db>(jars: &Self::Jars) -> &J;
+
+    fn jar_from_jars_mut<'db>(jars: &mut Self::Jars) -> &mut J;
 }
 
 pub trait HasJar<J> {
@@ -169,6 +175,5 @@ pub trait IngredientsFor {
 
     fn create_ingredients<DB>(ingredients: &mut Ingredients<DB>) -> Self::Ingredients
     where
-        DB: HasJars + DbWithJar<Self::Jar>,
-        Storage<DB>: HasJar<Self::Jar>;
+        DB: DbWithJar<Self::Jar> + JarFromJars<Self::Jar>;
 }

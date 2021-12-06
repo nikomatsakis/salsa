@@ -82,8 +82,7 @@ pub(crate) fn jar_impl(
 
             fn create_jar<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self
             where
-                DB: salsa::storage::HasJars + salsa::storage::DbWithJar<Self>,
-                salsa::storage::Storage<DB>: salsa::storage::HasJar<Self>,
+                DB: salsa::storage::JarFromJars<Self> + salsa::storage::DbWithJar<Self>,
             {
                 #(
                     let #field_var_names = <#field_tys as salsa::storage::IngredientsFor>::create_ingredients(ingredients);

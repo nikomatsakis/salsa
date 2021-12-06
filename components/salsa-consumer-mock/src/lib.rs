@@ -2,4 +2,4 @@
 
 mod db;
 mod jar0;
-mod parser;
+mod lexer;

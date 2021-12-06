@@ -19,10 +19,10 @@ impl IngredientIndex {
 }
 
 pub struct Ingredients<DB: HasJars> {
-    routes: Vec<Box<dyn Fn(&Storage<DB>) -> &dyn Ingredient<DB>>>,
+    routes: Vec<Box<dyn Fn(&DB::Jars) -> &dyn Ingredient<DB>>>,
 
     // This is NOT indexed by ingredient index. It's just a vector to iterate over.
-    mut_routes: Vec<Box<dyn Fn(&mut Storage<DB>) -> &mut dyn MutIngredient<DB>>>,
+    mut_routes: Vec<Box<dyn Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>>>,
 }
 
 impl<DB: HasJars> Ingredients<DB> {
@@ -46,7 +46,7 @@ impl<DB: HasJars> Ingredients<DB> {
     ///   database.
     pub fn push(
         &mut self,
-        route: impl (Fn(&Storage<DB>) -> &dyn Ingredient<DB>) + 'static,
+        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + 'static,
     ) -> IngredientIndex {
         let len = self.routes.len();
         self.routes.push(Box::new(route));
@@ -56,21 +56,21 @@ impl<DB: HasJars> Ingredients<DB> {
 
     pub fn push_mut(
         &mut self,
-        route: impl (Fn(&Storage<DB>) -> &dyn Ingredient<DB>) + 'static,
-        mut_route: impl (Fn(&mut Storage<DB>) -> &mut dyn MutIngredient<DB>) + 'static,
+        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + 'static,
+        mut_route: impl (Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>) + 'static,
     ) -> IngredientIndex {
         let index = self.push(route);
         self.mut_routes.push(Box::new(mut_route));
         index
     }
 
-    pub fn route(&self, index: IngredientIndex) -> &dyn Fn(&Storage<DB>) -> &dyn Ingredient<DB> {
+    pub fn route(&self, index: IngredientIndex) -> &dyn Fn(&DB::Jars) -> &dyn Ingredient<DB> {
         &self.routes[index.as_usize()]
     }
 
     pub fn mut_routes(
         &self,
-    ) -> impl Iterator<Item = &dyn Fn(&mut Storage<DB>) -> &mut dyn MutIngredient<DB>> + '_ {
+    ) -> impl Iterator<Item = &dyn Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>> + '_ {
         self.mut_routes.iter().map(|b| &**b)
     }
 }

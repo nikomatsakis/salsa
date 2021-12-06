@@ -129,13 +129,12 @@ fn ingredients_for_impl(args: &Args, struct_ty: &syn::Type) -> syn::ItemImpl {
 
             fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
             where
-                DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
-                salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+                DB: salsa::DbWithJar<Self::Jar> + salsa::storage::JarFromJars<Self::Jar>,
             {
                 Self {
                     intern_map: {
-                        let index = ingredients.push(|storage| {
-                            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+                        let index = ingredients.push(|jars| {
+                            let jar = <DB as salsa::storage::JarFromJars<Self::Jar>>::jar_from_jars(jars);
                             let ingredients =
                                 <_ as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
                             &ingredients.intern_map
@@ -144,8 +143,8 @@ fn ingredients_for_impl(args: &Args, struct_ty: &syn::Type) -> syn::ItemImpl {
                     },
 
                     function: {
-                        let index = ingredients.push(|storage| {
-                            let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+                        let index = ingredients.push(|jars| {
+                            let jar = <DB as salsa::storage::JarFromJars<Self::Jar>>::jar_from_jars(jars);
                             let ingredients =
                                 <_ as salsa::storage::HasIngredientsFor<Self::Ingredients>>::ingredient(jar);
                             &ingredients.function
@@ -254,7 +253,7 @@ fn wrapper_fn_bodies(
         {
             let (__jar, __runtime) = salsa::storage::HasJar::jar(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
-            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names),*));
+            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
             __ingredients.function.fetch(#db_var, __key)
         }
     };
@@ -263,8 +262,8 @@ fn wrapper_fn_bodies(
         {
             let (__jar, __runtime) = salsa::storage::HasJar::jar_mut(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient_mut(__jar);
-            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names),*));
-            __ingredients.function.store(__runtime, __key, #value_arg, Durability::LOW)
+            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
+            __ingredients.function.store(__runtime, __key, #value_arg, salsa::Durability::LOW)
         }
     };
 

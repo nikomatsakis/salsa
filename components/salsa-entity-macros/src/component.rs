@@ -129,14 +129,13 @@ fn ingredients_for_component_struct(args: &Args, fields: &[syn::Field]) -> syn::
 
             fn create_ingredients<DB>(ingredients: &mut salsa::routes::Ingredients<DB>) -> Self::Ingredients
             where
-                DB: salsa::storage::HasJars + salsa::DbWithJar<Self::Jar>,
-                salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+                DB: salsa::DbWithJar<Self::Jar> + salsa::storage::JarFromJars<Self::Jar>,
             {
                 Self {
                     #(
                         #field_names: {
-                            let index = ingredients.push(|storage| {
-                                let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+                            let index = ingredients.push(|jars| {
+                                let jar = <DB as salsa::storage::JarFromJars<Self::Jar>>::jar_from_jars(jars);
                                 let ingredients = <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar);
                                 &ingredients.#field_names
                             });
@@ -171,6 +170,9 @@ fn method_configuration(
         semi_token: Some(Token![;](ident_span)),
     };
 
+    let mut impl_item = method.clone();
+    impl_item.vis = syn::Visibility::Inherited;
+
     // Create the `execute` function. We have to do a bit of "funkiness" here because
     // we want the `self` to be the entity.
     let secret_trait_name = syn::Ident::new(
@@ -184,7 +186,7 @@ fn method_configuration(
             }
 
             impl #secret_trait_name for #key_ty {
-                #method
+                #impl_item
             }
 
             <Self::Key as #secret_trait_name>::#method_name(key, db)

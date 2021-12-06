@@ -128,16 +128,15 @@ fn id_ingredients_for_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
                 ingredients: &mut salsa::routes::Ingredients<DB>,
             ) -> Self::Ingredients
             where
-                DB: salsa::storage::HasJars,
-                salsa::storage::Storage<DB>: salsa::storage::HasJar<Self::Jar>,
+                DB: salsa::storage::JarFromJars<Self::Jar>,
             {
                 let index = ingredients.push_mut(
-                    |storage| {
-                        let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar(storage);
+                    |jars| {
+                        let jar = <DB as salsa::storage::JarFromJars<Self::Jar>>::jar_from_jars(jars);
                         <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient(jar)
                     },
-                    |storage| {
-                        let (jar, _) = <_ as salsa::storage::HasJar<Self::Jar>>::jar_mut(storage);
+                    |jars| {
+                        let jar = <DB as salsa::storage::JarFromJars<Self::Jar>>::jar_from_jars_mut(jars);
                         <_ as salsa::storage::HasIngredientsFor<Self>>::ingredient_mut(jar)
                     },
                 );

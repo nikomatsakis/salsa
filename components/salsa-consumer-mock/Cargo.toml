@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 salsa = { path = "../salsa-entity-mock", package = "salsa-entity-mock" }
+peg = "0.7.0"

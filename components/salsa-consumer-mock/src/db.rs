@@ -1,4 +1,5 @@
 use super::jar0::Jar0;
+use super::lexer::LexerJar;
 
 // User writes:
 //
@@ -51,7 +52,7 @@ impl salsa::database::AsSalsaDatabase for TheDatabase {
 }
 
 impl salsa::storage::HasJars for TheDatabase {
-    type Jars = (Jar0,);
+    type Jars = (Jar0, LexerJar);
 
     fn jars(&self) -> (&Self::Jars, &salsa::Runtime) {
         self.storage.jars()
@@ -62,7 +63,10 @@ impl salsa::storage::HasJars for TheDatabase {
     }
 
     fn create_jars(ingredients: &mut salsa::routes::Ingredients<Self>) -> Self::Jars {
-        (<Jar0 as salsa::jar::Jar>::create_jar(ingredients),)
+        (
+            <Jar0 as salsa::jar::Jar>::create_jar(ingredients),
+            <LexerJar as salsa::jar::Jar>::create_jar(ingredients),
+        )
     }
 }
 
@@ -100,22 +104,53 @@ impl salsa::storage::DbWithJar<Jar0> for TheDatabase {
 
 impl salsa::storage::HasJar<Jar0> for TheDatabase {
     fn jar(&self) -> (&Jar0, &salsa::Runtime) {
-        <_ as salsa::storage::HasJar<Jar0>>::jar(&self.storage)
-    }
-
-    fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
-        <_ as salsa::storage::HasJar<Jar0>>::jar_mut(&mut self.storage)
-    }
-}
-
-impl salsa::storage::HasJar<Jar0> for salsa::Storage<TheDatabase> {
-    fn jar(&self) -> (&Jar0, &salsa::Runtime) {
-        let (jars, runtime) = self.jars();
+        let (jars, runtime) = self.storage.jars();
         (&jars.0, runtime)
     }
 
     fn jar_mut(&mut self) -> (&mut Jar0, &mut salsa::Runtime) {
-        let (jars, runtime) = self.jars_mut();
+        let (jars, runtime) = self.storage.jars_mut();
         (&mut jars.0, runtime)
+    }
+}
+
+impl salsa::storage::JarFromJars<Jar0> for TheDatabase {
+    fn jar_from_jars<'db>(jars: &Self::Jars) -> &Jar0 {
+        &jars.0
+    }
+
+    fn jar_from_jars_mut<'db>(jars: &mut Self::Jars) -> &mut Jar0 {
+        &mut jars.0
+    }
+}
+
+impl salsa::storage::DbWithJar<LexerJar> for TheDatabase {
+    fn as_jar_db<'db>(&'db self) -> &'db <LexerJar as salsa::jar::Jar<'db>>::DynDb
+    where
+        'db: 'db,
+    {
+        self as &'db <LexerJar as salsa::jar::Jar<'db>>::DynDb
+    }
+}
+
+impl salsa::storage::HasJar<LexerJar> for TheDatabase {
+    fn jar(&self) -> (&LexerJar, &salsa::Runtime) {
+        let (jars, runtime) = self.storage.jars();
+        (&jars.1, runtime)
+    }
+
+    fn jar_mut(&mut self) -> (&mut LexerJar, &mut salsa::Runtime) {
+        let (jars, runtime) = self.storage.jars_mut();
+        (&mut jars.1, runtime)
+    }
+}
+
+impl salsa::storage::JarFromJars<LexerJar> for TheDatabase {
+    fn jar_from_jars<'db>(jars: &Self::Jars) -> &LexerJar {
+        &jars.1
+    }
+
+    fn jar_from_jars_mut<'db>(jars: &mut Self::Jars) -> &mut LexerJar {
+        &mut jars.1
     }
 }
