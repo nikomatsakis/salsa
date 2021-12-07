@@ -30,16 +30,22 @@ where
         }
 
         let revision = runtime.current_revision();
-        let memo = Memo {
+        let mut revisions = QueryRevisions {
+            changed_at: current_deps.changed_at,
+            durability: current_deps.durability,
+            inputs: QueryInputs::Tracked {
+                inputs: std::iter::once(DependencyIndex::from(active_query)).collect(),
+            },
+        };
+
+        if let Some(old_memo) = self.memo_map.get(key) {
+            self.backdate_if_appropriate(&old_memo, &mut revisions, &value);
+        }
+
+        let mut memo = Memo {
             value: Some(value),
             verified_at: AtomicCell::new(revision),
-            revisions: QueryRevisions {
-                changed_at: current_deps.changed_at,
-                durability: current_deps.durability,
-                inputs: QueryInputs::Tracked {
-                    inputs: std::iter::once(DependencyIndex::from(active_query)).collect(),
-                },
-            },
+            revisions,
         };
         self.memo_map.insert(key, memo);
     }

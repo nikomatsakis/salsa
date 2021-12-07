@@ -85,24 +85,7 @@ where
         // "backdate" its `changed_at` revision to be the same as the
         // old value.
         if let Some(old_memo) = &opt_old_memo {
-            if let Some(old_value) = &old_memo.value {
-                // Careful: if the value became less durable than it
-                // used to be, that is a "breaking change" that our
-                // consumers must be aware of. Becoming *more* durable
-                // is not. See the test `constant_to_non_constant`.
-                if revisions.durability >= old_memo.revisions.durability
-                    && C::should_backdate_value(old_value, &value)
-                {
-                    log::debug!(
-                        "{:?}: read_upgrade: value is equal, back-dating to {:?}",
-                        database_key_index.debug(db),
-                        old_memo.revisions.changed_at,
-                    );
-
-                    assert!(old_memo.revisions.changed_at <= revisions.changed_at);
-                    revisions.changed_at = old_memo.revisions.changed_at;
-                }
-            }
+            self.backdate_if_appropriate(old_memo, &mut revisions, &value);
         }
 
         let stamped_value = revisions.stamped_value(value);
