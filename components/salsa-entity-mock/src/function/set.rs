@@ -42,7 +42,7 @@ where
             self.backdate_if_appropriate(&old_memo, &mut revisions, &value);
         }
 
-        let mut memo = Memo {
+        let memo = Memo {
             value: Some(value),
             verified_at: AtomicCell::new(revision),
             revisions,
