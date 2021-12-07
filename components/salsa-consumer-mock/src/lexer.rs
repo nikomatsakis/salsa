@@ -36,15 +36,14 @@ pub struct Span {
 }
 
 #[salsa::memoized(in LexerJar)]
-pub fn source_text(db: &dyn Lexer, _filename: text::Text) -> Arc<String> {
+pub fn source_text(_db: &dyn Lexer, _filename: text::Text) -> Arc<String> {
     panic!("input")
 }
 
 #[salsa::memoized(in LexerJar)]
 pub fn parse(db: &dyn Lexer, filename: text::Text) -> token_tree::TokenTree {
     let source_text = source_text(db, filename);
-    let position = 0;
-    let mut chars = &mut source_text.char_indices().peekable();
+    let chars = &mut source_text.char_indices().peekable();
     parse_tokens(db, chars, source_text.len(), None)
 }
 

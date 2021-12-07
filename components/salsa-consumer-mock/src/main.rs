@@ -16,7 +16,7 @@ fn main() {
 fn print(db: &dyn lexer::Lexer, indent: usize, tree: lexer::token_tree::TokenTree) {
     let tokens = tree.tokens(db);
     for token in tokens {
-        for i in 0..indent {
+        for _ in 0..indent {
             print!(" ");
         }
         print!("token = {:?}", token);

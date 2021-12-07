@@ -28,6 +28,7 @@ macro_rules! parse_quote_spanned {
 mod component;
 mod configuration;
 mod data_item;
+mod db;
 mod entity;
 mod interned;
 mod jar;
@@ -36,6 +37,11 @@ mod memoized;
 #[proc_macro_attribute]
 pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {
     jar::jar(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn db(args: TokenStream, input: TokenStream) -> TokenStream {
+    db::db(args, input)
 }
 
 #[proc_macro_attribute]

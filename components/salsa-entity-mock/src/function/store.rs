@@ -6,7 +6,7 @@ use crate::{
     Runtime,
 };
 
-use super::{memo::Memo, Configuration, DynDb, FunctionIngredient};
+use super::{memo::Memo, Configuration, FunctionIngredient};
 
 impl<C> FunctionIngredient<C>
 where

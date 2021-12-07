@@ -5,7 +5,7 @@ use crate::{
     Cycle, DbWithJar, Id, Revision,
 };
 
-use super::{ingredient::Ingredient, routes::IngredientIndex, AsId, Runtime};
+use super::{ingredient::Ingredient, routes::IngredientIndex, AsId};
 
 mod execute;
 mod fetch;

@@ -1,7 +1,3 @@
-use salsa::Durability;
-
-pub(crate) mod main;
-
 #[salsa::jar(Jar0Db)]
 pub struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
 pub trait Jar0Db: salsa::DbWithJar<Jar0> {}

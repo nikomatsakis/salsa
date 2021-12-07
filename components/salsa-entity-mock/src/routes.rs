@@ -1,7 +1,6 @@
 use super::{
     ingredient::{Ingredient, MutIngredient},
     storage::HasJars,
-    storage::Storage,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

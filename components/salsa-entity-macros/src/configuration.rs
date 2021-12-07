@@ -1,5 +1,3 @@
-use syn::ImplItemMethod;
-
 pub(crate) struct Configuration {
     pub(crate) jar_ty: syn::Type,
     pub(crate) key_ty: syn::Type,

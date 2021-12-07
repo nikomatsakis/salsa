@@ -2,7 +2,6 @@ use crossbeam::atomic::AtomicCell;
 
 use crate::{
     entity::EntityInDb,
-    jar::Jar,
     key::DependencyIndex,
     runtime::local_state::{QueryInputs, QueryRevisions},
     Database,

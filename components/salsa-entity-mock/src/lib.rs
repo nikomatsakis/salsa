@@ -37,6 +37,7 @@ pub use self::runtime::Runtime;
 pub use self::storage::DbWithJar;
 pub use self::storage::Storage;
 pub use salsa_entity_macros::component;
+pub use salsa_entity_macros::db;
 pub use salsa_entity_macros::entity;
 pub use salsa_entity_macros::interned;
 pub use salsa_entity_macros::jar;

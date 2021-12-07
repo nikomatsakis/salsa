@@ -83,7 +83,7 @@ fn impl_items_and_method_structs(
                 items.push(configuration.to_impl(&struct_ty).into());
 
                 // Generate the getter/setter methods
-                let (getter, setter) = method_wrappers(args, item_impl, method);
+                let (getter, setter) = method_wrappers(args, method);
                 impl_items.push(getter.into());
                 impl_items.push(setter.into());
 
@@ -210,7 +210,6 @@ fn method_configuration(
 
 fn method_wrappers(
     args: &Args,
-    item_impl: &syn::ItemImpl,
     method: &syn::ImplItemMethod,
 ) -> (syn::ImplItemMethod, syn::ImplItemMethod) {
     // We need to generate something like this:
@@ -242,7 +241,7 @@ fn method_wrappers(
         Err("method needs to have 2 arguments")
     } else {
         match &method.sig.inputs[1] {
-            syn::FnArg::Receiver(r) => Err("second argment must not be self"),
+            syn::FnArg::Receiver(_) => Err("second argment must not be self"),
             syn::FnArg::Typed(ty) => match &*ty.pat {
                 syn::Pat::Ident(ident) => Ok(ident.ident.clone()),
                 _ => Err("second argment must be given a name"),

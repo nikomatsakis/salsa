@@ -16,13 +16,13 @@ pub(crate) fn memoized(
 ) -> proc_macro::TokenStream {
     let args = syn::parse_macro_input!(args as Args);
     let item_fn = syn::parse_macro_input!(input as ItemFn);
-    let struct_item = configuration_struct(&args, &item_fn);
+    let struct_item = configuration_struct(&item_fn);
     let configuration = fn_configuration(&args, &item_fn);
     let struct_item_ident = &struct_item.ident;
     let struct_ty: syn::Type = parse_quote!(#struct_item_ident);
     let configuration_impl = configuration.to_impl(&struct_ty);
     let ingredients_for_impl = ingredients_for_impl(&args, &struct_ty);
-    let (getter, setter) = wrapper_fns(&args, &item_fn, &struct_ty);
+    let (getter, setter) = wrapper_fns(&item_fn, &struct_ty);
 
     proc_macro::TokenStream::from(quote! {
         #struct_item
@@ -58,7 +58,7 @@ fn key_tuple_ty(item_fn: &syn::ItemFn) -> syn::Type {
     )
 }
 
-fn configuration_struct(args: &Args, item_fn: &syn::ItemFn) -> syn::ItemStruct {
+fn configuration_struct(item_fn: &syn::ItemFn) -> syn::ItemStruct {
     let fn_name = item_fn.sig.ident.clone();
     let key_tuple_ty = key_tuple_ty(item_fn);
     parse_quote! {
@@ -74,7 +74,6 @@ fn fn_configuration(args: &Args, item_fn: &syn::ItemFn) -> Configuration {
     let jar_ty = args.jar_ty.clone();
     let key_ty = parse_quote!(salsa::id::Id);
     let value_ty = configuration::value_ty(&item_fn.sig);
-    let ident_span = item_fn.sig.ident.span();
 
     // FIXME: these are hardcoded for now
     let cycle_strategy = CycleRecoveryStrategy::Panic;
@@ -157,14 +156,10 @@ fn ingredients_for_impl(args: &Args, struct_ty: &syn::Type) -> syn::ItemImpl {
     }
 }
 
-fn wrapper_fns(
-    args: &Args,
-    item_fn: &syn::ItemFn,
-    struct_ty: &syn::Type,
-) -> (syn::ItemFn, syn::ItemImpl) {
+fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, syn::ItemImpl) {
     let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
 
-    let (getter_block, setter_block) = wrapper_fn_bodies(args, item_fn, struct_ty, &value_arg)
+    let (getter_block, setter_block) = wrapper_fn_bodies(item_fn, struct_ty, &value_arg)
         .unwrap_or_else(|msg| {
             let msg = proc_macro2::Literal::string(msg);
             (
@@ -196,7 +191,7 @@ fn wrapper_fns(
     }
     setter_sig.inputs.push(parse_quote!(#value_arg: #value_ty));
     setter_sig.output = ReturnType::Default;
-    let mut setter_fn = syn::ImplItemMethod {
+    let setter_fn = syn::ImplItemMethod {
         attrs: vec![],
         vis: item_fn.vis.clone(),
         defaultness: None,
@@ -213,7 +208,6 @@ fn wrapper_fns(
 }
 
 fn wrapper_fn_bodies(
-    args: &Args,
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
     value_arg: &syn::Ident,
@@ -225,7 +219,7 @@ fn wrapper_fn_bodies(
         Err("method needs a database argument")
     } else {
         match &item_fn.sig.inputs[0] {
-            syn::FnArg::Receiver(r) => Err("first argment be the database"),
+            syn::FnArg::Receiver(_) => Err("first argment be the database"),
             syn::FnArg::Typed(ty) => match &*ty.pat {
                 syn::Pat::Ident(ident) => Ok(ident.ident.clone()),
                 _ => Err("first argment must be given a name"),
