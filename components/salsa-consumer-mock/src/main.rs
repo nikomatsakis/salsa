@@ -29,7 +29,7 @@ fn print(db: &dyn lexer::Lexer, indent: usize, tree: lexer::token_tree::TokenTre
             }
             lexer::Token::Tree(tree) => {
                 println!();
-                print(db, indent + 2, tree);
+                print(db, indent + 2, *tree);
             }
             _ => println!(),
         }

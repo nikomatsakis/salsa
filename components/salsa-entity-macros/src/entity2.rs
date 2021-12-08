@@ -195,19 +195,19 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
             }
 
             #(
-                pub fn #id_field_names(self, __db: &#db_dyn_ty) -> #id_field_tys
+                pub fn #id_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #id_field_tys
                 {
                     let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    __ingredients.#entity_index.entity_data(self).#id_field_indices.clone()
+                    &__ingredients.#entity_index.entity_data(self).#id_field_indices
                 }
             )*
 
             #(
-                pub fn #other_field_names(self, __db: &#db_dyn_ty) -> #other_field_tys {
+                pub fn #other_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #other_field_tys {
                     let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    __ingredients.#other_field_indices.fetch(__db, self).clone()
+                    __ingredients.#other_field_indices.fetch(__db, self)
                 }
             )*
         }
