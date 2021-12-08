@@ -199,7 +199,7 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
                 {
                     let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    &__ingredients.#entity_index.entity_data(self).#id_field_indices
+                    &__ingredients.#entity_index.entity_data(__runtime, self).#id_field_indices
                 }
             )*
 
