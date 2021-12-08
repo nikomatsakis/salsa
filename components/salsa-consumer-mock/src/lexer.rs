@@ -1,13 +1,7 @@
 use std::{iter::Peekable, sync::Arc};
 
 #[salsa::jar(Lexer)]
-pub struct LexerJar(
-    text::Text,
-    token_tree::TokenTree,
-    token_tree::TokenTreeComponent,
-    parse,
-    source_text,
-);
+pub struct LexerJar(text::Text, token_tree::TokenTree, lex, source_text);
 
 pub trait Lexer: salsa::DbWithJar<LexerJar> {}
 impl<T> Lexer for T where T: salsa::DbWithJar<LexerJar> {}
@@ -41,13 +35,13 @@ pub fn source_text(_db: &dyn Lexer, _filename: text::Text) -> Arc<String> {
 }
 
 #[salsa::memoized(in LexerJar)]
-pub fn parse(db: &dyn Lexer, filename: text::Text) -> token_tree::TokenTree {
+pub fn lex(db: &dyn Lexer, filename: text::Text) -> token_tree::TokenTree {
     let source_text = source_text(db, filename);
     let chars = &mut source_text.char_indices().peekable();
-    parse_tokens(db, chars, source_text.len(), None)
+    lex_tokens(db, chars, source_text.len(), None)
 }
 
-fn parse_tokens(
+fn lex_tokens(
     db: &dyn Lexer,
     chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     file_len: usize,
@@ -69,7 +63,7 @@ fn parse_tokens(
         match ch {
             '(' => {
                 tokens.push(Token::OpenParen);
-                let tree = parse_tokens(db, chars, file_len, Some(')'));
+                let tree = lex_tokens(db, chars, file_len, Some(')'));
                 tokens.push(Token::Tree(tree));
             }
             ')' => {
@@ -77,7 +71,7 @@ fn parse_tokens(
             }
             '[' => {
                 tokens.push(Token::OpenBracket);
-                let tree = parse_tokens(db, chars, file_len, Some(']'));
+                let tree = lex_tokens(db, chars, file_len, Some(']'));
                 tokens.push(Token::Tree(tree));
             }
             ']' => {
@@ -85,7 +79,7 @@ fn parse_tokens(
             }
             '{' => {
                 tokens.push(Token::OpenBrace);
-                let tree = parse_tokens(db, chars, file_len, Some('}'));
+                let tree = lex_tokens(db, chars, file_len, Some('}'));
                 tokens.push(Token::Tree(tree));
             }
             '}' => {

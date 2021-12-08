@@ -1,4 +1,4 @@
-use crate::{runtime::local_state::QueryRevisions, DatabaseKeyIndex};
+use crate::runtime::local_state::QueryRevisions;
 
 use super::{memo::Memo, Configuration, FunctionIngredient};
 

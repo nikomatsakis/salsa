@@ -54,6 +54,10 @@ pub fn should_backdate_value<V: Eq>(old_value: &V, new_value: &V) -> bool {
 
 pub type DynDb<'bound, C> = <<C as Configuration>::Jar as Jar<'bound>>::DynDb;
 
+/// This type is used to make configuration types for the functions in entities;
+/// e.g. you can do `Config<X, 0>` and `Config<X, 1>`.
+pub struct Config<const C: usize>(std::marker::PhantomData<[(); C]>);
+
 impl<C> FunctionIngredient<C>
 where
     C: Configuration,

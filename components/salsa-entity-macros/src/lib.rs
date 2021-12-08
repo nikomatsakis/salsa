@@ -30,6 +30,7 @@ mod configuration;
 mod data_item;
 mod db;
 mod entity;
+mod entity2;
 mod interned;
 mod jar;
 mod memoized;
@@ -47,6 +48,11 @@ pub fn db(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn entity(args: TokenStream, input: TokenStream) -> TokenStream {
     entity::entity(args, input)
+}
+
+#[proc_macro]
+pub fn entity2(input: TokenStream) -> TokenStream {
+    entity2::entity(input)
 }
 
 #[proc_macro_attribute]

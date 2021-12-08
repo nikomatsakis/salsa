@@ -9,7 +9,7 @@ fn main() {
 
     let dummy_rs = lexer::text::Text::from(&db, format!("dummy.rs"));
     lexer::source_text::set(&mut db, dummy_rs, Arc::new(format!("foo(bar, baz[3]))")));
-    let ast = lexer::parse(&db, dummy_rs);
+    let ast = lexer::lex(&db, dummy_rs);
     print(&db, 0, ast);
 }
 
