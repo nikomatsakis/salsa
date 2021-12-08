@@ -201,6 +201,7 @@ fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, sy
     };
     let setter_impl: syn::ItemImpl = parse_quote! {
         impl #struct_ty {
+            #ref_getter_fn
             #setter_fn
         }
     };
@@ -241,6 +242,7 @@ fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::It
                         apostrophe: and_token_span,
                         ident,
                     });
+                    ty.lifetime = db_lifetime.clone();
                 }
             },
             _ => db_lifetime = None,
