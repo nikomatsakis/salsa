@@ -22,7 +22,7 @@ pub(crate) fn memoized(
     let struct_ty: syn::Type = parse_quote!(#struct_item_ident);
     let configuration_impl = configuration.to_impl(&struct_ty);
     let ingredients_for_impl = ingredients_for_impl(&args, &struct_ty);
-    let (getter, setter) = wrapper_fns(&item_fn, &struct_ty);
+    let (getter, setter) = wrapper_fns(&args, &item_fn, &struct_ty);
 
     proc_macro::TokenStream::from(quote! {
         #struct_item
@@ -98,7 +98,7 @@ fn fn_configuration(args: &Args, item_fn: &syn::ItemFn) -> Configuration {
         fn execute(__db: &salsa::function::DynDb<Self>, __id: Self::Key) -> Self::Value {
             #inner_fn
 
-            let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
+            let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(__db);
             let __ingredients =
                 <_ as salsa::storage::HasIngredientsFor<#fn_ty>>::ingredient(__jar);
             let __key = __ingredients.intern_map.data(__runtime, __id).clone();
@@ -154,11 +154,15 @@ fn ingredients_for_impl(args: &Args, struct_ty: &syn::Type) -> syn::ItemImpl {
     }
 }
 
-fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, syn::ItemImpl) {
+fn wrapper_fns(
+    args: &Args,
+    item_fn: &syn::ItemFn,
+    struct_ty: &syn::Type,
+) -> (syn::ItemFn, syn::ItemImpl) {
     let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
 
     let (getter_block, ref_getter_block, setter_block) =
-        wrapper_fn_bodies(item_fn, struct_ty, &value_arg).unwrap_or_else(|msg| {
+        wrapper_fn_bodies(args, item_fn, struct_ty, &value_arg).unwrap_or_else(|msg| {
             let msg = proc_macro2::Literal::string(msg);
             (
                 parse_quote_spanned! {
@@ -272,10 +276,13 @@ fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::It
 }
 
 fn wrapper_fn_bodies(
+    args: &Args,
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
     value_arg: &syn::Ident,
 ) -> Result<(syn::Block, syn::Block, syn::Block), &'static str> {
+    let jar_ty = &args.jar_ty;
+
     // Find the name `db` that user gave to the second argument.
     // They can't have done any "funny business" (such as a pattern
     // like `(db, _)` or whatever) or we get an error.
@@ -309,7 +316,7 @@ fn wrapper_fn_bodies(
 
     let ref_getter: syn::Block = parse_quote! {
         {
-            let (__jar, __runtime) = salsa::storage::HasJar::jar(#db_var);
+            let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
             let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
             __ingredients.function.fetch(#db_var, __key)
@@ -324,7 +331,7 @@ fn wrapper_fn_bodies(
 
     let setter: syn::Block = parse_quote! {
         {
-            let (__jar, __runtime) = salsa::storage::HasJar::jar_mut(#db_var);
+            let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar_mut(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient_mut(__jar);
             let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
             __ingredients.function.store(__runtime, __key, #value_arg, salsa::Durability::LOW)

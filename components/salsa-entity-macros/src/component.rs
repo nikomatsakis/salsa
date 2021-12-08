@@ -213,7 +213,7 @@ fn method_wrappers(
     // We need to generate something like this:
     //
     //     fn method(self, db: &dyn Jar0Db) -> String {
-    //         let (jar, _) = salsa::storage::HasJar::jar(db);
+    //         let (jar, _) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
     //         let component: &EntityComponent0 =
     //             <Jar0 as salsa::storage::HasIngredientsFor<EntityComponent0>>::ingredient(jar);
     //         component.method.fetch(db, self)
@@ -231,6 +231,7 @@ fn method_wrappers(
 
     let component = &args.component_ident;
     let method_ident = &method.sig.ident;
+    let jar_ty = &args.jar_ty;
 
     // Find the name `db` that user gave to the second argument.
     // They can't have done any "funny business" (such as a pattern
@@ -256,7 +257,7 @@ fn method_wrappers(
         }
         Ok(db_var) => parse_quote! {
             {
-                let (jar, _) = salsa::storage::HasJar::jar(#db_var);
+                let (jar, _) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(#db_var);
                 let component = <_ as salsa::storage::HasIngredientsFor<#component>>::ingredient(jar);
                 component.#method_ident.fetch(#db_var, self).clone()
             }
@@ -276,7 +277,7 @@ fn method_wrappers(
         Err(_) => parse_quote! { {} },
         Ok(db_var) => parse_quote! {
             {
-                let (jar, _) = salsa::storage::HasJar::jar(#db_var);
+                let (jar, _) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(#db_var);
                 let component = <_ as salsa::storage::HasIngredientsFor<#component>>::ingredient(jar);
                 component.#method_ident.set(#db_var, self, value)
             }

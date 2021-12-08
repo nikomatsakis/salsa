@@ -73,7 +73,7 @@ fn id_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
             where
                 DB: salsa::storage::HasJar<#jar_path>,
             {
-                let (jar, runtime) = salsa::storage::HasJar::jar(db);
+                let (jar, runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #id_ident >>::ingredient(jar);
                 ingredients.entity_data(runtime, self)
             }
@@ -106,7 +106,7 @@ fn id_in_db_impl(args: &Args) -> syn::ItemImpl {
             DB: ?Sized + salsa::DbWithJar<#jar_path>,
         {
             fn database_key_index(self, db: &DB) -> salsa::DatabaseKeyIndex {
-                let (jar, _) = salsa::storage::HasJar::jar(db);
+                let (jar, _) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor<#id_ident>>::ingredient(jar);
                 ingredients.database_key_index(self)
             }
@@ -157,7 +157,7 @@ fn data_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
             where
                 DB: salsa::storage::HasJar<#jar_path>,
             {
-                let (jar, runtime) = salsa::storage::HasJar::jar(db);
+                let (jar, runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor<#id_ident>>::ingredient(jar);
                 ingredients.new_entity(runtime, self)
             }

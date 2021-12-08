@@ -185,7 +185,7 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
         impl #ident {
             pub fn new(__db: &#db_dyn_ty, #(#all_field_names: #all_field_tys,)*) -> Self
             {
-                let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
+                let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
                 let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
                 let __id = __ingredients.#entity_index.new_entity(__runtime, (#(#id_field_names,)*));
                 #(
@@ -197,7 +197,7 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
             #(
                 pub fn #id_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #id_field_tys
                 {
-                    let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
                     &__ingredients.#entity_index.entity_data(self).#id_field_indices
                 }
@@ -205,7 +205,7 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
 
             #(
                 pub fn #other_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #other_field_tys {
-                    let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
                     __ingredients.#other_field_indices.fetch(__db, self)
                 }
@@ -273,7 +273,7 @@ fn id_in_db_impl(entity: &Entity) -> syn::ItemImpl {
             DB: ?Sized + salsa::DbWithJar<#jar_path>,
         {
             fn database_key_index(self, db: &DB) -> salsa::DatabaseKeyIndex {
-                let (jar, _) = salsa::storage::HasJar::jar(db);
+                let (jar, _) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor<#ident>>::ingredient(jar);
                 ingredients.#entity_index.database_key_index(self)
             }

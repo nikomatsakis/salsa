@@ -70,7 +70,7 @@ fn id_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
             where
                 DB: salsa::storage::HasJar<#jar_path>,
             {
-                let (jar, runtime) = salsa::storage::HasJar::jar(db);
+                let (jar, runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #id_ident >>::ingredient(jar);
                 ingredients.data(runtime, self)
             }
@@ -133,7 +133,7 @@ fn data_inherent_impl(args: &Args, data_item: &DataItem) -> syn::ItemImpl {
             where
                 DB: salsa::storage::HasJar<#jar_path>,
             {
-                let (jar, runtime) = salsa::storage::HasJar::jar(db);
+                let (jar, runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor<#id_ident>>::ingredient(jar);
                 ingredients.intern(runtime, self)
             }
