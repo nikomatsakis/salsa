@@ -39,8 +39,9 @@ impl syn::parse::Parse for Entity {
 }
 
 impl Entity {
-    fn is_id_field(_field: &syn::Field) -> bool {
-        false // FIXME
+    fn is_id_field(field: &syn::Field) -> bool {
+        field.attrs.iter()
+        .any(|a| a.path.is_ident("id"))
     }
 
     fn other_fields_count(&self) -> usize {
@@ -218,12 +219,10 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
         ident, jar_path, ..
     } = entity;
     let other_field_tys = entity.other_field_tys();
-    let other_field_indices: Vec<_> = entity.other_field_indices();
-    other_field_indices
+    other_field_tys
     .into_iter()
-    .zip(other_field_tys)
     .zip(config_structs.iter().map(|s| &s.ident))
-    .map(|((other_field_index, other_field_ty), config_struct_name)| {
+    .map(|( other_field_ty, config_struct_name)| {
         parse_quote! {
             impl salsa::function::Configuration for #config_struct_name {
                 type Jar = #jar_path;
