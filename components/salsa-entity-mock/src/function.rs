@@ -1,5 +1,11 @@
+use std::sync::Arc;
+
+use arc_swap::ArcSwap;
+use crossbeam::queue::SegQueue;
+
 use crate::{
     cycle::CycleRecoveryStrategy,
+    ingredient::MutIngredient,
     jar::Jar,
     key::{DatabaseKeyIndex, DependencyIndex},
     Cycle, DbWithJar, Id, Revision,
@@ -23,6 +29,20 @@ pub struct FunctionIngredient<C: Configuration> {
     memo_map: memo::MemoMap<C::Key, C::Value>,
     sync_map: sync::SyncMap,
     lru: lru::Lru,
+
+    /// When `fetch` and friends executes, they return a reference to the
+    /// value stored in the memo that is extended to live as long as the `&self`
+    /// reference we start with. This means that whenever we remove something
+    /// from `memo_map` with an `&self` reference, there *could* be references to its
+    /// internals still in use. Therefore we push the memo into this queue and
+    /// only *actually* free up memory when a new revision starts (which means
+    /// we have an `&mut` reference to self).
+    ///
+    /// You might think that we could do this only if the memo was verified in the
+    /// current revision: you would be right, but we are being defensive, because
+    /// we don't know that we can trust the database to give us the same runtime
+    /// everytime and so forth.
+    deleted_entries: SegQueue<ArcSwap<memo::Memo<C::Value>>>,
 }
 
 pub trait Configuration {
@@ -31,8 +51,6 @@ pub trait Configuration {
     type Value: Clone + std::fmt::Debug;
 
     const CYCLE_STRATEGY: CycleRecoveryStrategy;
-
-    const MEMOIZE_VALUE: bool;
 
     fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool;
 
@@ -68,6 +86,7 @@ where
             memo_map: memo::MemoMap::default(),
             lru: Default::default(),
             sync_map: Default::default(),
+            deleted_entries: Default::default(),
         }
     }
 
@@ -80,6 +99,36 @@ where
 
     pub fn set_capacity(&self, capacity: usize) {
         self.lru.set_capacity(capacity);
+    }
+
+    /// Returns a reference to the memo value that lives as long as self.
+    /// This is UNSAFE: the caller is responsible for ensuring that the
+    /// memo will not be released so long as the `&self` is valid.
+    /// This is done by (a) ensuring the memo is present in the memo-map
+    /// when this function is called and (b) ensuring that any entries
+    /// removed from the memo-map are added to `deleted_entries`, which is
+    /// only cleared with `&mut self`.
+    unsafe fn extend_memo_lifetime<'this, 'memo>(
+        &'this self,
+        memo: &'memo memo::Memo<C::Value>,
+    ) -> Option<&'this C::Value> {
+        let memo_value: Option<&'memo C::Value> = memo.value.as_ref();
+        std::mem::transmute(memo_value)
+    }
+
+    fn insert_memo(&self, key: C::Key, memo: memo::Memo<C::Value>) -> Option<&C::Value> {
+        let memo = Arc::new(memo);
+        let value = unsafe {
+            // Unsafety conditions: memo must be in the map (it's not yet, but it will be by the time this
+            // value is returned) and anything removed from map is added to deleted entries (ensured elsewhere).
+            self.extend_memo_lifetime(&memo)
+        };
+        if let Some(old_value) = self.memo_map.insert(key, memo) {
+            // In case there is a reference to the old memo out there, we have to store it
+            // in the deleted entries. This will get cleared when a new revision starts.
+            self.deleted_entries.push(old_value);
+        }
+        value
     }
 }
 
@@ -96,5 +145,15 @@ where
 
     fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy {
         C::CYCLE_STRATEGY
+    }
+}
+
+impl<DB, C> MutIngredient<DB> for FunctionIngredient<C>
+where
+    DB: ?Sized + DbWithJar<C::Jar>,
+    C: Configuration,
+{
+    fn reset_for_new_revision(&mut self) {
+        std::mem::take(&mut self.deleted_entries);
     }
 }

@@ -25,7 +25,7 @@ where
         db: &DynDb<C>,
         active_query: ActiveQueryGuard<'_>,
         opt_old_memo: Option<Arc<Memo<C::Value>>>,
-    ) -> StampedValue<C::Value> {
+    ) -> StampedValue<&C::Value> {
         let runtime = db.salsa_runtime();
         let revision_now = runtime.current_revision();
         let database_key_index = active_query.database_key_index;
@@ -88,25 +88,16 @@ where
             self.backdate_if_appropriate(old_memo, &mut revisions, &value);
         }
 
+        let value = self
+            .insert_memo(key, Memo::new(Some(value), revision_now, revisions.clone()))
+            .unwrap();
+
         let stamped_value = revisions.stamped_value(value);
 
         log::debug!(
             "{:?}: read_upgrade: result.revisions = {:#?}",
             database_key_index.debug(db),
             revisions
-        );
-
-        self.memo_map.insert(
-            key,
-            Memo::new(
-                if C::MEMOIZE_VALUE {
-                    Some(stamped_value.value.clone())
-                } else {
-                    None
-                },
-                revision_now,
-                revisions,
-            ),
         );
 
         stamped_value

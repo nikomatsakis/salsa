@@ -47,6 +47,7 @@ where
             verified_at: AtomicCell::new(revision),
             revisions,
         };
-        self.memo_map.insert(key, memo);
+
+        self.insert_memo(key, memo);
     }
 }

@@ -207,7 +207,7 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
                 pub fn #other_field_names(self, __db: &#db_dyn_ty) -> #other_field_tys {
                     let (__jar, __runtime) = salsa::storage::HasJar::jar(__db);
                     let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    __ingredients.#other_field_indices.fetch(__db, self)
+                    __ingredients.#other_field_indices.fetch(__db, self).clone()
                 }
             )*
         }
@@ -229,7 +229,6 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
                 type Key = #ident;
                 type Value = #other_field_ty;
                 const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy = salsa::cycle::CycleRecoveryStrategy::Panic;
-                const MEMOIZE_VALUE: bool = true;            
 
                 fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
                     salsa::function::should_backdate_value(old_value, new_value)

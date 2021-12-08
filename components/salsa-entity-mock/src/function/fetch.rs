@@ -12,7 +12,7 @@ impl<C> FunctionIngredient<C>
 where
     C: Configuration,
 {
-    pub fn fetch(&self, db: &DynDb<C>, key: C::Key) -> C::Value {
+    pub fn fetch(&self, db: &DynDb<C>, key: C::Key) -> &C::Value {
         let runtime = db.salsa_runtime();
 
         runtime.unwind_if_revision_cancelled(db);
@@ -37,7 +37,7 @@ where
     }
 
     #[inline]
-    fn compute_value(&self, db: &DynDb<C>, key: C::Key) -> StampedValue<C::Value> {
+    fn compute_value(&self, db: &DynDb<C>, key: C::Key) -> StampedValue<&C::Value> {
         loop {
             if let Some(value) = self.fetch_hot(db, key).or_else(|| self.fetch_cold(db, key)) {
                 return value;
@@ -46,20 +46,24 @@ where
     }
 
     #[inline]
-    fn fetch_hot(&self, db: &DynDb<C>, key: C::Key) -> Option<StampedValue<C::Value>> {
+    fn fetch_hot(&self, db: &DynDb<C>, key: C::Key) -> Option<StampedValue<&C::Value>> {
         let memo_guard = self.memo_map.get(key);
         if let Some(memo) = &memo_guard {
-            if let Some(value) = &memo.value {
+            if memo.value.is_some() {
                 let runtime = db.salsa_runtime();
                 if self.shallow_verify_memo(db, runtime, self.database_key_index(key), memo) {
-                    return Some(memo.revisions.stamped_value(value.clone()));
+                    let value = unsafe {
+                        // Unsafety invariant: memo is present in memo_map
+                        self.extend_memo_lifetime(memo).unwrap()
+                    };
+                    return Some(memo.revisions.stamped_value(value));
                 }
             }
         }
         None
     }
 
-    fn fetch_cold(&self, db: &DynDb<C>, key: C::Key) -> Option<StampedValue<C::Value>> {
+    fn fetch_cold(&self, db: &DynDb<C>, key: C::Key) -> Option<StampedValue<&C::Value>> {
         let runtime = db.salsa_runtime();
         let database_key_index = self.database_key_index(key);
 
@@ -75,9 +79,13 @@ where
         // This time we can do a *deep* verify. Because this can recurse, don't hold the arcswap guard.
         let opt_old_memo = self.memo_map.get(key).map(Guard::into_inner);
         if let Some(old_memo) = &opt_old_memo {
-            if let Some(value) = &old_memo.value {
+            if old_memo.value.is_some() {
                 if self.deep_verify_memo(db, old_memo, &active_query) {
-                    return Some(old_memo.revisions.stamped_value(value.clone()));
+                    let value = unsafe {
+                        // Unsafety invariant: memo is present in memo_map.
+                        self.extend_memo_lifetime(old_memo).unwrap()
+                    };
+                    return Some(old_memo.revisions.stamped_value(value));
                 }
             }
         }
@@ -93,7 +101,9 @@ where
                 return;
             }
 
-            self.memo_map.remove(key);
+            if let Some(memo) = self.memo_map.remove(key) {
+                self.deleted_entries.push(memo);
+            }
         }
     }
 }

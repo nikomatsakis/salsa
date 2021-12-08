@@ -77,9 +77,8 @@ fn fn_configuration(args: &Args, item_fn: &syn::ItemFn) -> Configuration {
 
     // FIXME: these are hardcoded for now
     let cycle_strategy = CycleRecoveryStrategy::Panic;
-    let memoize_value = true;
 
-    let backdate_fn = configuration::should_backdate_value_fn(memoize_value);
+    let backdate_fn = configuration::should_backdate_value_fn();
     let recover_fn = configuration::panic_cycle_recovery_fn();
 
     // The type of the configuration struct; this has the same name as the fn itself.
@@ -112,7 +111,6 @@ fn fn_configuration(args: &Args, item_fn: &syn::ItemFn) -> Configuration {
         key_ty,
         value_ty,
         cycle_strategy,
-        memoize_value,
         backdate_fn,
         execute_fn,
         recover_fn,
@@ -248,7 +246,7 @@ fn wrapper_fn_bodies(
             let (__jar, __runtime) = salsa::storage::HasJar::jar(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
             let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
-            __ingredients.function.fetch(#db_var, __key)
+            __ingredients.function.fetch(#db_var, __key).clone()
         }
     };
 

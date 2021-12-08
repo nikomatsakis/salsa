@@ -161,7 +161,6 @@ fn method_configuration(
 
     // FIXME: these are hardcoded for now
     let cycle_strategy = CycleRecoveryStrategy::Panic;
-    let memoize_value = true;
 
     let trait_item = syn::TraitItemMethod {
         attrs: vec![],
@@ -193,7 +192,7 @@ fn method_configuration(
         }
     };
 
-    let backdate_fn = configuration::should_backdate_value_fn(memoize_value);
+    let backdate_fn = configuration::should_backdate_value_fn();
     let recover_fn = configuration::panic_cycle_recovery_fn();
 
     Configuration {
@@ -201,7 +200,6 @@ fn method_configuration(
         key_ty,
         value_ty,
         cycle_strategy,
-        memoize_value,
         backdate_fn,
         execute_fn,
         recover_fn,
@@ -260,7 +258,7 @@ fn method_wrappers(
             {
                 let (jar, _) = salsa::storage::HasJar::jar(#db_var);
                 let component = <_ as salsa::storage::HasIngredientsFor<#component>>::ingredient(jar);
-                component.#method_ident.fetch(#db_var, self)
+                component.#method_ident.fetch(#db_var, self).clone()
             }
         },
     };

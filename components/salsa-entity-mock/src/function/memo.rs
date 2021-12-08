@@ -22,13 +22,15 @@ impl<K: AsId, V> Default for MemoMap<K, V> {
 
 impl<K: AsId, V> MemoMap<K, V> {
     /// Inserts the memo for the given key; (atomically) overwrites any previously existing memo.-
-    pub(super) fn insert(&self, key: K, memo: Memo<V>) -> Option<ArcSwap<Memo<V>>> {
-        self.map.insert(key, ArcSwap::from(Arc::new(memo)))
+    #[must_use]
+    pub(super) fn insert(&self, key: K, memo: Arc<Memo<V>>) -> Option<ArcSwap<Memo<V>>> {
+        self.map.insert(key, ArcSwap::from(memo))
     }
 
     /// Removes any existing memo for the given key.
-    pub(super) fn remove(&self, key: K) {
-        self.map.remove(&key);
+    #[must_use]
+    pub(super) fn remove(&self, key: K) -> Option<ArcSwap<Memo<V>>> {
+        self.map.remove(&key).map(|o| o.1)
     }
 
     /// Loads the current memo for `key_index`. This does not hold any sort of
