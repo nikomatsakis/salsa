@@ -157,13 +157,14 @@ fn ingredients_for_impl(args: &Args, struct_ty: &syn::Type) -> syn::ItemImpl {
 fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, syn::ItemImpl) {
     let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
 
-    let (getter_block, setter_block) = wrapper_fn_bodies(item_fn, struct_ty, &value_arg)
-        .unwrap_or_else(|msg| {
+    let (getter_block, ref_getter_block, setter_block) =
+        wrapper_fn_bodies(item_fn, struct_ty, &value_arg).unwrap_or_else(|msg| {
             let msg = proc_macro2::Literal::string(msg);
             (
                 parse_quote_spanned! {
                     item_fn.sig.span() => {compile_error!(#msg)}
                 },
+                parse_quote!(panic!()),
                 parse_quote!({}),
             )
         });
@@ -171,6 +172,8 @@ fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, sy
     // The "getter" has same signature as the original:
     let mut getter_fn = item_fn.clone();
     getter_fn.block = Box::new(getter_block);
+
+    let ref_getter_fn = ref_getter_fn(item_fn, ref_getter_block);
 
     // The setter has *always* the same signature as the original:
     // but it takes a value arg and has no return type.
@@ -205,11 +208,72 @@ fn wrapper_fns(item_fn: &syn::ItemFn, struct_ty: &syn::Type) -> (syn::ItemFn, sy
     (getter_fn, setter_impl)
 }
 
+fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::ItemFn {
+    let mut ref_getter_fn = item_fn.clone();
+    ref_getter_fn.sig.ident = syn::Ident::new("get", item_fn.sig.ident.span());
+
+    // The 0th input should be a `&dyn Foo`. We need to ensure
+    // it has a named lifetime parameter.
+    let db_lifetime;
+    match &mut ref_getter_fn.sig.inputs[0] {
+        // change from `&dyn ...` to `&mut dyn...`
+        syn::FnArg::Receiver(_) => db_lifetime = None,
+        syn::FnArg::Typed(pat_ty) => match &mut *pat_ty.ty {
+            syn::Type::Reference(ty) => match &ty.lifetime {
+                Some(lt) => db_lifetime = Some(lt.clone()),
+                None => {
+                    let and_token_span = ty.and_token.span();
+                    let ident = syn::Ident::new("__db", and_token_span);
+                    ref_getter_fn.sig.generics.params.insert(
+                        0,
+                        syn::LifetimeDef {
+                            attrs: vec![],
+                            lifetime: syn::Lifetime {
+                                apostrophe: and_token_span,
+                                ident: ident.clone(),
+                            },
+                            colon_token: None,
+                            bounds: Default::default(),
+                        }
+                        .into(),
+                    );
+                    db_lifetime = Some(syn::Lifetime {
+                        apostrophe: and_token_span,
+                        ident,
+                    });
+                }
+            },
+            _ => db_lifetime = None,
+        },
+    }
+
+    let (right_arrow, elem) = match ref_getter_fn.sig.output {
+        ReturnType::Default => (
+            syn::Token![->](ref_getter_fn.sig.paren_token.span),
+            parse_quote!(()),
+        ),
+        ReturnType::Type(rarrow, ty) => (rarrow, ty),
+    };
+
+    let ref_output = syn::TypeReference {
+        and_token: syn::Token![&](right_arrow.span()),
+        lifetime: db_lifetime,
+        mutability: None,
+        elem,
+    };
+
+    ref_getter_fn.sig.output = syn::ReturnType::Type(right_arrow, Box::new(ref_output.into()));
+
+    ref_getter_fn.block = Box::new(ref_getter_block);
+
+    ref_getter_fn
+}
+
 fn wrapper_fn_bodies(
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
     value_arg: &syn::Ident,
-) -> Result<(syn::Block, syn::Block), &'static str> {
+) -> Result<(syn::Block, syn::Block, syn::Block), &'static str> {
     // Find the name `db` that user gave to the second argument.
     // They can't have done any "funny business" (such as a pattern
     // like `(db, _)` or whatever) or we get an error.
@@ -241,12 +305,18 @@ fn wrapper_fn_bodies(
         .collect();
     let arg_names = arg_names?;
 
-    let getter: syn::Block = parse_quote! {
+    let ref_getter: syn::Block = parse_quote! {
         {
             let (__jar, __runtime) = salsa::storage::HasJar::jar(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
             let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
-            __ingredients.function.fetch(#db_var, __key).clone()
+            __ingredients.function.fetch(#db_var, __key)
+        }
+    };
+
+    let getter: syn::Block = parse_quote! {
+        {
+            #ref_getter.clone()
         }
     };
 
@@ -259,5 +329,5 @@ fn wrapper_fn_bodies(
         }
     };
 
-    Ok((getter, setter))
+    Ok((getter, ref_getter, setter))
 }
