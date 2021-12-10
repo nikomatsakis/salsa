@@ -38,22 +38,27 @@ impl syn::parse::Parse for Entity {
 }
 
 impl Entity {
-    fn other_fields_count(&self) -> usize {
-        self.fields.named.iter().filter(|f| !is_id_field(f)).count()
-    }
-
     /// For the entity, we create a tuple that contains the function ingredients
     /// for each "other" field and the entity ingredient. This is the index of
     /// the entity ingredient within that tuple.
     fn entity_index(&self) -> Literal {
-        Literal::usize_unsuffixed(self.other_fields_count())
+        Literal::usize_unsuffixed(self.other_fields().count())
     }
 
     /// For the entity, we create a tuple that contains the function ingredients
     /// for each "other" field and the entity ingredient. These are the indices
     /// of the function ingredients within that tuple.
     fn other_field_indices(&self) -> Vec<Literal> {
-        (0..self.other_fields_count())
+        (0..self.other_fields().count())
+        .map(|i| Literal::usize_unsuffixed(i))
+        .collect()
+    }
+
+    /// For the entity, we create a tuple that contains each of its id fields
+    /// to use as the "value'. These are the indices
+    /// of the function ingredients within that tuple.
+    fn id_field_indices(&self) -> Vec<Literal> {
+        (0..self.id_fields().count())
         .map(|i| Literal::usize_unsuffixed(i))
         .collect()
     }
@@ -95,9 +100,9 @@ fn is_backdate_field(field: &syn::Field) -> bool {
     .any(|a| a.path.is_ident("no_eq"))
 }
 
-fn is_ref_field(field: &syn::Field) -> bool {
+fn is_clone_field(field: &syn::Field) -> bool {
     field.attrs.iter()
-    .any(|a| a.path.is_ident("ref"))
+    .any(|a| a.path.is_ident("clone"))
 }
 
 fn field_name(field: &syn::Field) -> &syn::Ident {
@@ -157,22 +162,72 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
     let Entity {
         ident, jar_path, ..
     } = entity;
-    let all_field_names = entity.all_field_names();
-    let all_field_tys = entity.all_field_tys();
-    let (id_field_names, id_field_tys): (Vec<_>, Vec<_>) = entity.id_fields().map(|f| (field_name(f), field_ty(f))).unzip();
-    let id_field_indices: Vec<_> = (0..id_field_names.len())
-        .map(|i| Literal::usize_unsuffixed(i))
-        .collect();
-    let other_field_names: Vec<_> = entity.other_fields().map(field_name).collect();
-    let other_field_indices = entity.other_field_indices();
-    let other_field_tys: Vec<_> = entity.other_fields().map(field_ty).collect();
-    let entity_index = entity.entity_index();
 
     // FIXME: It'd be nicer to make a DB parameter, but only because dyn upcasting doesn't work.
     // Making DB a *parameter* would work except that 
     let db_dyn_ty: syn::Type = parse_quote! {
         <#jar_path as salsa::jar::Jar<'_>>::DynDb
     };
+
+    let entity_index = entity.entity_index();
+
+    let id_field_indices: Vec<_> = entity.id_field_indices();
+    let id_field_names: Vec<_> = entity.id_fields().map(field_name).collect();
+    let id_field_tys: Vec<_> = entity.id_fields().map(field_ty).collect();
+    let id_field_clones: Vec<_> = entity.id_fields().map(is_clone_field).collect();
+    let id_field_getters: Vec<syn::ImplItemMethod> = id_field_indices.iter().zip(&id_field_names).zip(&id_field_tys).zip(&id_field_clones).map(|(((field_index, field_name), field_ty), is_clone_field)|
+        if !*is_clone_field {
+            parse_quote! {
+                pub fn #field_name<'db>(self, __db: &'db #db_dyn_ty) -> &'db #field_ty
+                {
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
+                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
+                    &__ingredients.#entity_index.entity_data(__runtime, self).#field_index
+                }
+            }
+        } else {
+            parse_quote! {
+                pub fn #field_name<'db>(self, __db: &'db #db_dyn_ty) -> #field_ty
+                {
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
+                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
+                    __ingredients.#entity_index.entity_data(__runtime, self).#field_index.clone()
+                }
+            }
+        }
+    )
+    .collect();
+    
+    let other_field_indices = entity.other_field_indices();
+    let other_field_names: Vec<_> = entity.other_fields().map(field_name).collect();
+    let other_field_tys: Vec<_> = entity.other_fields().map(field_ty).collect();
+    let other_field_clones: Vec<_> = entity.other_fields().map(is_clone_field).collect();
+    let other_field_getters: Vec<syn::ImplItemMethod> = other_field_indices.iter().zip(&other_field_names).zip(&other_field_tys).zip(&other_field_clones).map(|(((field_index, field_name), field_ty), is_clone_field)|
+        if !*is_clone_field {
+            parse_quote! {
+                pub fn #field_name<'db>(self, __db: &'db #db_dyn_ty) -> &'db #field_ty
+                {
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
+                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
+                    __ingredients.#field_index.fetch(__db, self)
+                }
+            }
+        } else {
+            parse_quote! {
+                pub fn #field_name<'db>(self, __db: &'db #db_dyn_ty) -> #field_ty
+                {
+                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
+                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
+                    __ingredients.#field_index.fetch(__db, self).clone()
+                }
+            }
+        }
+    )
+    .collect();
+
+    let all_field_names = entity.all_field_names();
+    let all_field_tys = entity.all_field_tys();
+
 
     parse_quote! {
         impl #ident {
@@ -187,22 +242,9 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
                 __id
             }
 
-            #(
-                pub fn #id_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #id_field_tys
-                {
-                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
-                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    &__ingredients.#entity_index.entity_data(__runtime, self).#id_field_indices
-                }
-            )*
+            #(#id_field_getters)*
 
-            #(
-                pub fn #other_field_names<'db>(self, __db: &'db #db_dyn_ty) -> &'db #other_field_tys {
-                    let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_path>>::jar(__db);
-                    let __ingredients = <#jar_path as salsa::storage::HasIngredientsFor< #ident >>::ingredient(__jar);
-                    __ingredients.#other_field_indices.fetch(__db, self)
-                }
-            )*
+            #(#other_field_getters)*
         }
     }
 }
