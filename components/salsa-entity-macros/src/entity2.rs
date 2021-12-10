@@ -38,18 +38,8 @@ impl syn::parse::Parse for Entity {
 }
 
 impl Entity {
-    fn is_id_field(field: &syn::Field) -> bool {
-        field.attrs.iter()
-        .any(|a| a.path.is_ident("id"))
-    }
-
-    fn is_backdate_field(field: &syn::Field) -> bool {
-        !field.attrs.iter()
-        .any(|a| a.path.is_ident("no_eq"))
-    }
-
     fn other_fields_count(&self) -> usize {
-        self.fields.named.iter().filter(|f| !Self::is_id_field(f)).count()
+        self.fields.named.iter().filter(|f| !is_id_field(f)).count()
     }
 
     /// For the entity, we create a tuple that contains the function ingredients
@@ -84,45 +74,38 @@ impl Entity {
         self.fields
             .named
             .iter()
-            .filter(|f| Self::is_id_field(f))
-    }
-
-    fn id_field_names(&self) -> Vec<&syn::Ident> {
-        self.id_fields()
-            .map(|f| f.ident.as_ref().unwrap())
-            .collect()
-    }
-
-    fn id_field_tys(&self) -> Vec<&syn::Type> {
-        self.id_fields()
-            .map(|f| &f.ty)
-            .collect()
+            .filter(|f| is_id_field(f))
     }
 
     fn other_fields(&self) -> impl Iterator<Item = &syn::Field> + '_ {
         self.fields
             .named
             .iter()
-            .filter(|f| !Self::is_id_field(f))
+            .filter(|f| !is_id_field(f))
     }
+}
 
-    fn other_field_names(&self) -> Vec<&syn::Ident> {
-        self.other_fields()
-            .map(|f| f.ident.as_ref().unwrap())
-            .collect()
-    }
+fn is_id_field(field: &syn::Field) -> bool {
+    field.attrs.iter()
+    .any(|a| a.path.is_ident("id"))
+}
 
-    fn other_field_tys(&self) -> Vec<&syn::Type> {
-        self.other_fields()
-            .map(|f| &f.ty)
-            .collect()
-    }
+fn is_backdate_field(field: &syn::Field) -> bool {
+    !field.attrs.iter()
+    .any(|a| a.path.is_ident("no_eq"))
+}
 
-    fn other_field_backdates(&self) -> Vec<bool> {
-        self.other_fields()
-            .map(|f| Self::is_backdate_field(f))
-            .collect()
-    }
+fn is_ref_field(field: &syn::Field) -> bool {
+    field.attrs.iter()
+    .any(|a| a.path.is_ident("ref"))
+}
+
+fn field_name(field: &syn::Field) -> &syn::Ident {
+    field.ident.as_ref().unwrap()
+}
+
+fn field_ty(field: &syn::Field) -> &syn::Type {
+    &field.ty
 }
 
 fn entity_contents(entity: &Entity) -> proc_macro2::TokenStream {
@@ -155,9 +138,8 @@ fn id_struct(entity: &Entity) -> syn::ItemStruct {
 
 fn config_structs(entity: &Entity) -> Vec<syn::ItemStruct> {
     let ident = &entity.ident;
-    let other_field_names = entity.other_field_names();
-    other_field_names
-    .iter()
+    entity.other_fields()
+    .map(field_name)
     .map(|other_field_name| {
         let config_name = syn::Ident::new(
             &format!("__{}", format!("{}_{}", ident, other_field_name).to_camel_case()),
@@ -177,14 +159,13 @@ fn id_inherent_impl(entity: &Entity) -> syn::ItemImpl {
     } = entity;
     let all_field_names = entity.all_field_names();
     let all_field_tys = entity.all_field_tys();
-    let id_field_names = entity.id_field_names();
+    let (id_field_names, id_field_tys): (Vec<_>, Vec<_>) = entity.id_fields().map(|f| (field_name(f), field_ty(f))).unzip();
     let id_field_indices: Vec<_> = (0..id_field_names.len())
         .map(|i| Literal::usize_unsuffixed(i))
         .collect();
-    let id_field_tys = entity.id_field_tys();
-    let other_field_names = entity.other_field_names();
+    let other_field_names: Vec<_> = entity.other_fields().map(field_name).collect();
     let other_field_indices = entity.other_field_indices();
-    let other_field_tys = entity.other_field_tys();
+    let other_field_tys: Vec<_> = entity.other_fields().map(field_ty).collect();
     let entity_index = entity.entity_index();
 
     // FIXME: It'd be nicer to make a DB parameter, but only because dyn upcasting doesn't work.
@@ -230,8 +211,8 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
     let Entity {
         ident, jar_path, ..
     } = entity;
-    let other_field_tys = entity.other_field_tys();
-    let other_field_backdates = entity.other_field_backdates();
+    let other_field_tys = entity.other_fields().map(field_ty);
+    let other_field_backdates = entity.other_fields().map(is_backdate_field);
     other_field_tys
     .into_iter()
     .zip(config_structs.iter().map(|s| &s.ident))
@@ -309,7 +290,7 @@ fn id_ingredients_for_impl(entity: &Entity, config_structs: &[syn::ItemStruct]) 
     let Entity {
         ident, jar_path, ..
     } = entity;
-    let id_field_tys = entity.id_field_tys();
+    let id_field_tys: Vec<_> = entity.id_fields().map(field_ty).collect();
     let other_field_indices: Vec<_> = entity.other_field_indices();
     let entity_index = entity.entity_index();
     let config_struct_names = config_structs.iter().map(|s| &s.ident);
