@@ -5,10 +5,9 @@ use proc_macro2::Literal;
 //     entity TokenTree in LexerJar {
 //         #[id] name: String,
 //         tokens: Vec<Token>,
-//         span: Span,
+//         #[no_eq] span: Span,
 //     }
 // }
-
 pub(crate) fn entity(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let entity = syn::parse_macro_input!(input as Entity);
     entity_contents(&entity).into()
@@ -44,6 +43,11 @@ impl Entity {
         .any(|a| a.path.is_ident("id"))
     }
 
+    fn is_backdate_field(field: &syn::Field) -> bool {
+        !field.attrs.iter()
+        .any(|a| a.path.is_ident("no_eq"))
+    }
+
     fn other_fields_count(&self) -> usize {
         self.fields.named.iter().filter(|f| !Self::is_id_field(f)).count()
     }
@@ -76,39 +80,47 @@ impl Entity {
         self.fields.named.iter().map(|f| &f.ty).collect()
     }
 
-    fn id_field_names(&self) -> Vec<&syn::Ident> {
+    fn id_fields(&self) -> impl Iterator<Item = &syn::Field> + '_ {
         self.fields
             .named
             .iter()
             .filter(|f| Self::is_id_field(f))
+    }
+
+    fn id_field_names(&self) -> Vec<&syn::Ident> {
+        self.id_fields()
             .map(|f| f.ident.as_ref().unwrap())
             .collect()
     }
 
     fn id_field_tys(&self) -> Vec<&syn::Type> {
-        self.fields
-            .named
-            .iter()
-            .filter(|f| Self::is_id_field(f))
+        self.id_fields()
             .map(|f| &f.ty)
             .collect()
     }
 
-    fn other_field_names(&self) -> Vec<&syn::Ident> {
+    fn other_fields(&self) -> impl Iterator<Item = &syn::Field> + '_ {
         self.fields
             .named
             .iter()
             .filter(|f| !Self::is_id_field(f))
+    }
+
+    fn other_field_names(&self) -> Vec<&syn::Ident> {
+        self.other_fields()
             .map(|f| f.ident.as_ref().unwrap())
             .collect()
     }
 
     fn other_field_tys(&self) -> Vec<&syn::Type> {
-        self.fields
-            .named
-            .iter()
-            .filter(|f| !Self::is_id_field(f))
+        self.other_fields()
             .map(|f| &f.ty)
+            .collect()
+    }
+
+    fn other_field_backdates(&self) -> Vec<bool> {
+        self.other_fields()
+            .map(|f| Self::is_backdate_field(f))
             .collect()
     }
 }
@@ -219,10 +231,22 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
         ident, jar_path, ..
     } = entity;
     let other_field_tys = entity.other_field_tys();
+    let other_field_backdates = entity.other_field_backdates();
     other_field_tys
     .into_iter()
     .zip(config_structs.iter().map(|s| &s.ident))
-    .map(|( other_field_ty, config_struct_name)| {
+    .zip(other_field_backdates)
+    .map(|((other_field_ty, config_struct_name), other_field_backdate)| {
+        let should_backdate_value = if other_field_backdate {
+            quote! {
+                salsa::function::should_backdate_value(old_value, new_value)
+            }
+        } else {
+            quote! {
+                false
+            }
+        };
+
         parse_quote! {
             impl salsa::function::Configuration for #config_struct_name {
                 type Jar = #jar_path;
@@ -231,7 +255,7 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
                 const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy = salsa::cycle::CycleRecoveryStrategy::Panic;
 
                 fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
-                    salsa::function::should_backdate_value(old_value, new_value)
+                    #should_backdate_value
                 }
 
                 fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
