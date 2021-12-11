@@ -7,7 +7,8 @@ use crate::{options::Options, configuration};
 //     entity TokenTree in LexerJar {
 //         #[id ref] name: String,
 //         #[value ref] tokens: Vec<Token>,
-//         #[value no_eq] span: Span,
+//         span: Span,
+//         #[value no_eq] uuid: Span,
 //     }
 // }
 pub(crate) fn entity(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
