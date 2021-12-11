@@ -1,5 +1,12 @@
 #[salsa::jar(Jar0Db)]
-pub struct Jar0(Entity0, Ty0, EntityComponent0, my_func);
+pub struct Jar0(
+    Entity0,
+    Ty0,
+    EntityComponent0,
+    my_func,
+    my_func_ref,
+    my_func_ref_eq,
+);
 pub trait Jar0Db: salsa::DbWithJar<Jar0> {}
 impl<DB> Jar0Db for DB where DB: ?Sized + salsa::DbWithJar<Jar0> {}
 
@@ -23,7 +30,23 @@ impl Entity0 {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct NotClone(u32);
+
+#[salsa::memoized(in Jar0 ref)]
+fn my_func_ref(_db: &dyn Jar0Db, input1: u32, input2: u32) -> NotClone {
+    NotClone(input1 + input2)
+}
+
 #[salsa::memoized(in Jar0)]
 fn my_func(_db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
     format!("Hello, world ({}, {})", input1, input2)
+}
+
+#[derive(Debug)]
+pub struct NotCloneNotEq(u32);
+
+#[salsa::memoized(in Jar0 ref no_eq)]
+fn my_func_ref_eq(_db: &dyn Jar0Db, input1: u32, input2: u32) -> NotCloneNotEq {
+    NotCloneNotEq(input1 + input2)
 }

@@ -53,10 +53,18 @@ impl quote::ToTokens for CycleRecoveryStrategy {
 
 /// Returns an appropriate definition for `should_backdate_value` depending on
 /// whether this value is memoized or not.
-pub(crate) fn should_backdate_value_fn() -> syn::ImplItemMethod {
-    parse_quote! {
-        fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
-            salsa::function::should_backdate_value(v1, v2)
+pub(crate) fn should_backdate_value_fn(should_backdate: bool) -> syn::ImplItemMethod {
+    if should_backdate {
+        parse_quote! {
+            fn should_backdate_value(v1: &Self::Value, v2: &Self::Value) -> bool {
+                salsa::function::should_backdate_value(v1, v2)
+            }
+        }
+    } else {
+        parse_quote! {
+            fn should_backdate_value(_v1: &Self::Value, _v2: &Self::Value) -> bool {
+                false
+            }
         }
     }
 }

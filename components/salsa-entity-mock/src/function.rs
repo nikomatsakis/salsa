@@ -48,7 +48,7 @@ pub struct FunctionIngredient<C: Configuration> {
 pub trait Configuration {
     type Jar: for<'db> Jar<'db>;
     type Key: Eq + AsId;
-    type Value: Clone + std::fmt::Debug;
+    type Value: std::fmt::Debug;
 
     const CYCLE_STRATEGY: CycleRecoveryStrategy;
 

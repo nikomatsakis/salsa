@@ -4,6 +4,7 @@ use syn::spanned::Spanned;
 use syn::{ItemFn, ReturnType, Token};
 
 use crate::configuration::{self, Configuration, CycleRecoveryStrategy};
+use crate::options::Options;
 
 // #[salsa::memoized(in Jar0)]
 // fn my_func(db: &dyn Jar0Db, input1: u32, input2: u32) -> String {
@@ -22,7 +23,10 @@ pub(crate) fn memoized(
     let struct_ty: syn::Type = parse_quote!(#struct_item_ident);
     let configuration_impl = configuration.to_impl(&struct_ty);
     let ingredients_for_impl = ingredients_for_impl(&args, &struct_ty);
-    let (getter, setter) = wrapper_fns(&args, &item_fn, &struct_ty);
+    let (getter, setter) = match wrapper_fns(&args, &item_fn, &struct_ty) {
+        Ok(p) => p,
+        Err(e) => return e.into_compile_error().into(),
+    };
 
     proc_macro::TokenStream::from(quote! {
         #struct_item
@@ -36,6 +40,7 @@ pub(crate) fn memoized(
 struct Args {
     _in_token: Token![in],
     jar_ty: syn::Type,
+    options: Options,
 }
 
 impl Parse for Args {
@@ -43,6 +48,7 @@ impl Parse for Args {
         Ok(Self {
             _in_token: Parse::parse(input)?,
             jar_ty: Parse::parse(input)?,
+            options: Parse::parse(input)?,
         })
     }
 }
@@ -78,7 +84,7 @@ fn fn_configuration(args: &Args, item_fn: &syn::ItemFn) -> Configuration {
     // FIXME: these are hardcoded for now
     let cycle_strategy = CycleRecoveryStrategy::Panic;
 
-    let backdate_fn = configuration::should_backdate_value_fn();
+    let backdate_fn = configuration::should_backdate_value_fn(args.options.should_backdate());
     let recover_fn = configuration::panic_cycle_recovery_fn();
 
     // The type of the configuration struct; this has the same name as the fn itself.
@@ -158,24 +164,22 @@ fn wrapper_fns(
     args: &Args,
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
-) -> (syn::ItemFn, syn::ItemImpl) {
+) -> syn::Result<(syn::ItemFn, syn::ItemImpl)> {
     let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
 
-    let (getter_block, ref_getter_block, setter_block) =
-        wrapper_fn_bodies(args, item_fn, struct_ty, &value_arg).unwrap_or_else(|msg| {
+    let (ref_getter_block, setter_block) = wrapper_fn_bodies(args, item_fn, struct_ty, &value_arg)
+        .unwrap_or_else(|msg| {
             let msg = proc_macro2::Literal::string(msg);
             (
                 parse_quote_spanned! {
                     item_fn.sig.span() => {compile_error!(#msg)}
                 },
-                parse_quote!(panic!()),
                 parse_quote!({}),
             )
         });
 
     // The "getter" has same signature as the original:
-    let mut getter_fn = item_fn.clone();
-    getter_fn.block = Box::new(getter_block);
+    let mut getter_fn = getter_fn(args, item_fn, struct_ty)?;
 
     let ref_getter_fn = ref_getter_fn(item_fn, ref_getter_block);
 
@@ -210,13 +214,55 @@ fn wrapper_fns(
         }
     };
 
-    (getter_fn, setter_impl)
+    Ok((getter_fn, setter_impl))
+}
+
+fn getter_fn(
+    args: &Args,
+    item_fn: &syn::ItemFn,
+    struct_ty: &syn::Type,
+) -> syn::Result<syn::ItemFn> {
+    let mut getter_fn = item_fn.clone();
+    let arg_idents: Vec<_> = item_fn
+        .sig
+        .inputs
+        .iter()
+        .map(|arg| -> syn::Result<syn::Ident> {
+            match arg {
+                syn::FnArg::Receiver(_) => Err(syn::Error::new(arg.span(), "unexpected receiver")),
+                syn::FnArg::Typed(pat_ty) => Ok(match &*pat_ty.pat {
+                    syn::Pat::Ident(ident) => ident.ident.clone(),
+                    _ => return Err(syn::Error::new(arg.span(), "unexpected receiver")),
+                }),
+            }
+        })
+        .collect::<Result<_, _>>()?;
+    if args.options.is_ref.is_some() {
+        getter_fn = make_fn_return_ref(getter_fn);
+        getter_fn.block = Box::new(parse_quote_spanned! {
+            item_fn.block.span() => {
+                #struct_ty::get(#(#arg_idents,)*)
+            }
+        });
+    } else {
+        getter_fn.block = Box::new(parse_quote_spanned! {
+            item_fn.block.span() => {
+                Clone::clone(#struct_ty::get(#(#arg_idents,)*))
+            }
+        });
+    }
+    Ok(getter_fn)
 }
 
 fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::ItemFn {
     let mut ref_getter_fn = item_fn.clone();
     ref_getter_fn.sig.ident = syn::Ident::new("get", item_fn.sig.ident.span());
+    ref_getter_fn.block = Box::new(ref_getter_block);
+    ref_getter_fn = make_fn_return_ref(ref_getter_fn);
+    ref_getter_fn
+}
 
+fn make_fn_return_ref(mut ref_getter_fn: syn::ItemFn) -> syn::ItemFn {
     // The 0th input should be a `&dyn Foo`. We need to ensure
     // it has a named lifetime parameter.
     let db_lifetime;
@@ -270,8 +316,6 @@ fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::It
 
     ref_getter_fn.sig.output = syn::ReturnType::Type(right_arrow, Box::new(ref_output.into()));
 
-    ref_getter_fn.block = Box::new(ref_getter_block);
-
     ref_getter_fn
 }
 
@@ -280,7 +324,7 @@ fn wrapper_fn_bodies(
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
     value_arg: &syn::Ident,
-) -> Result<(syn::Block, syn::Block, syn::Block), &'static str> {
+) -> Result<(syn::Block, syn::Block), &'static str> {
     let jar_ty = &args.jar_ty;
 
     // Find the name `db` that user gave to the second argument.
@@ -323,12 +367,6 @@ fn wrapper_fn_bodies(
         }
     };
 
-    let getter: syn::Block = parse_quote! {
-        {
-            #ref_getter.clone()
-        }
-    };
-
     let setter: syn::Block = parse_quote! {
         {
             let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar_mut(#db_var);
@@ -338,5 +376,5 @@ fn wrapper_fn_bodies(
         }
     };
 
-    Ok((getter, ref_getter, setter))
+    Ok((ref_getter, setter))
 }

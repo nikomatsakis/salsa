@@ -192,7 +192,7 @@ fn method_configuration(
         }
     };
 
-    let backdate_fn = configuration::should_backdate_value_fn();
+    let backdate_fn = configuration::should_backdate_value_fn(true);
     let recover_fn = configuration::panic_cycle_recovery_fn();
 
     Configuration {

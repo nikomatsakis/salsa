@@ -34,6 +34,7 @@ mod entity2;
 mod interned;
 mod jar;
 mod memoized;
+mod options;
 
 #[proc_macro_attribute]
 pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {

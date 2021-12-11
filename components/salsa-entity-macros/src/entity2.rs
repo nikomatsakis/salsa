@@ -1,15 +1,24 @@
 use heck::CamelCase;
 use proc_macro2::Literal;
 
+use crate::{options::Options, configuration};
+
 // salsa::entity! {
 //     entity TokenTree in LexerJar {
-//         #[id] name: String,
-//         tokens: Vec<Token>,
-//         #[no_eq] span: Span,
+//         #[id ref] name: String,
+//         #[value ref] tokens: Vec<Token>,
+//         #[value no_eq] span: Span,
 //     }
 // }
 pub(crate) fn entity(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let entity = syn::parse_macro_input!(input as Entity);
+
+    for field in entity.fields.named.iter() {
+        if let Err(e) = field_options(field) {
+            return e.into_compile_error().into();
+        }
+    }
+
     entity_contents(&entity).into()
 }
 
@@ -90,19 +99,26 @@ impl Entity {
     }
 }
 
+fn field_options(field: &syn::Field) -> syn::Result<Options> {
+    match field.attrs.iter()
+    .find(|a| a.path.is_ident("id") || a.path.is_ident("value"))
+    {
+        None => Ok(Options::default()),
+        Some(a) => syn::parse2(a.tokens.clone()),
+    }
+}
+
 fn is_id_field(field: &syn::Field) -> bool {
     field.attrs.iter()
     .any(|a| a.path.is_ident("id"))
 }
 
 fn is_backdate_field(field: &syn::Field) -> bool {
-    !field.attrs.iter()
-    .any(|a| a.path.is_ident("no_eq"))
+    field_options(field).unwrap_or_else(|_| Default::default()).no_eq.is_some()
 }
 
 fn is_clone_field(field: &syn::Field) -> bool {
-    field.attrs.iter()
-    .any(|a| a.path.is_ident("clone"))
+    field_options(field).unwrap_or_else(|_| Default::default()).is_ref.is_none()
 }
 
 fn field_name(field: &syn::Field) -> &syn::Ident {
@@ -260,15 +276,7 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
     .zip(config_structs.iter().map(|s| &s.ident))
     .zip(other_field_backdates)
     .map(|((other_field_ty, config_struct_name), other_field_backdate)| {
-        let should_backdate_value = if other_field_backdate {
-            quote! {
-                salsa::function::should_backdate_value(old_value, new_value)
-            }
-        } else {
-            quote! {
-                false
-            }
-        };
+        let should_backdate_value_fn = configuration::should_backdate_value_fn(other_field_backdate);
 
         parse_quote! {
             impl salsa::function::Configuration for #config_struct_name {
@@ -277,9 +285,7 @@ fn config_impls(entity: &Entity, config_structs: &[syn::ItemStruct]) -> Vec<syn:
                 type Value = #other_field_ty;
                 const CYCLE_STRATEGY: salsa::cycle::CycleRecoveryStrategy = salsa::cycle::CycleRecoveryStrategy::Panic;
 
-                fn should_backdate_value(old_value: &Self::Value, new_value: &Self::Value) -> bool {
-                    #should_backdate_value
-                }
+                #should_backdate_value_fn
 
                 fn execute(db: &salsa::function::DynDb<Self>, key: Self::Key) -> Self::Value {
                     unreachable!()
