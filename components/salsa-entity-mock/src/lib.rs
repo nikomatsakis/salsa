@@ -23,6 +23,7 @@ pub use self::cancelled::Cancelled;
 pub use self::cycle::Cycle;
 pub use self::database::Database;
 pub use self::database::ParallelDatabase;
+pub use self::database::Snapshot;
 pub use self::durability::Durability;
 pub use self::entity::EntityData;
 pub use self::entity::EntityId;

@@ -17,11 +17,20 @@ impl IngredientIndex {
     }
 }
 
+#[allow(type_alias_bounds)]
+#[allow(unused_parens)]
+pub type DynRoute<DB: HasJars> = dyn Fn(&DB::Jars) -> (&dyn Ingredient<DB>) + Send + Sync;
+
+#[allow(type_alias_bounds)]
+#[allow(unused_parens)]
+pub type DynMutRoute<DB: HasJars> =
+    dyn Fn(&mut DB::Jars) -> (&mut dyn MutIngredient<DB>) + Send + Sync;
+
 pub struct Ingredients<DB: HasJars> {
-    routes: Vec<Box<dyn Fn(&DB::Jars) -> &dyn Ingredient<DB>>>,
+    routes: Vec<Box<DynRoute<DB>>>,
 
     // This is NOT indexed by ingredient index. It's just a vector to iterate over.
-    mut_routes: Vec<Box<dyn Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>>>,
+    mut_routes: Vec<Box<DynMutRoute<DB>>>,
 }
 
 impl<DB: HasJars> Ingredients<DB> {
@@ -45,7 +54,7 @@ impl<DB: HasJars> Ingredients<DB> {
     ///   database.
     pub fn push(
         &mut self,
-        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + 'static,
+        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + Send + Sync + 'static,
     ) -> IngredientIndex {
         let len = self.routes.len();
         self.routes.push(Box::new(route));
@@ -53,10 +62,12 @@ impl<DB: HasJars> Ingredients<DB> {
         index
     }
 
+    /// As [`Self::push`] but for an ingredient that wants a callback whenever
+    /// a new revision is published. T+ Send + Synchese callbacks are used to clear out old data.
     pub fn push_mut(
         &mut self,
-        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + 'static,
-        mut_route: impl (Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>) + 'static,
+        route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + Send + Sync + 'static,
+        mut_route: impl (Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>) + Send + Sync + 'static,
     ) -> IngredientIndex {
         let index = self.push(route);
         self.mut_routes.push(Box::new(mut_route));
@@ -70,6 +81,8 @@ impl<DB: HasJars> Ingredients<DB> {
     pub fn mut_routes(
         &self,
     ) -> impl Iterator<Item = &dyn Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>> + '_ {
-        self.mut_routes.iter().map(|b| &**b)
+        self.mut_routes
+            .iter()
+            .map(|b| &**b as &dyn Fn(&mut DB::Jars) -> &mut dyn MutIngredient<DB>)
     }
 }

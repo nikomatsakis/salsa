@@ -46,8 +46,7 @@ impl<DB> Storage<DB>
 where
     DB: HasJars,
 {
-    #[allow(dead_code)]
-    fn snapshot(&self) -> Storage<DB>
+    pub fn snapshot(&self) -> Storage<DB>
     where
         DB: ParallelDatabase,
     {

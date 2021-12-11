@@ -17,4 +17,10 @@ impl salsa::Database for TheDatabase {
     }
 }
 
-impl salsa::ParallelDatabase for TheDatabase {}
+impl salsa::ParallelDatabase for TheDatabase {
+    fn snapshot(&self) -> salsa::Snapshot<Self> {
+        salsa::Snapshot::new(TheDatabase {
+            storage: self.storage.snapshot(),
+        })
+    }
+}
