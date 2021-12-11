@@ -115,7 +115,7 @@ fn is_id_field(field: &syn::Field) -> bool {
 }
 
 fn is_backdate_field(field: &syn::Field) -> bool {
-    field_options(field).unwrap_or_else(|_| Default::default()).no_eq.is_some()
+    field_options(field).unwrap_or_else(|_| Default::default()).should_backdate()
 }
 
 fn is_clone_field(field: &syn::Field) -> bool {
