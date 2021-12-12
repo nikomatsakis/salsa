@@ -136,6 +136,7 @@ fn entity_contents(entity: &Entity) -> proc_macro2::TokenStream {
     let id_inherent_impl = id_inherent_impl(entity);
     let id_ingredients_for_impl = id_ingredients_for_impl(entity, &config_structs);
     let id_in_db_impl = id_in_db_impl(entity);
+    let id_debug_with_impl = id_debug_with_impl(entity);
     let as_id_impl = as_id_impl(entity);
     let config_impls = config_impls(entity, &config_structs);
 
@@ -144,6 +145,7 @@ fn entity_contents(entity: &Entity) -> proc_macro2::TokenStream {
         #id_inherent_impl
         #id_ingredients_for_impl
         #id_in_db_impl
+        #id_debug_with_impl
         #as_id_impl
         #(#config_structs)*
         #(#config_impls)*
@@ -330,6 +332,34 @@ fn id_in_db_impl(entity: &Entity) -> syn::ItemImpl {
                 let (jar, _) = <_ as salsa::storage::HasJar<#jar_path>>::jar(db);
                 let ingredients = <#jar_path as salsa::storage::HasIngredientsFor<#ident>>::ingredient(jar);
                 ingredients.#entity_index.database_key_index(self)
+            }
+        }
+    }
+}
+
+fn id_debug_with_impl(entity: &Entity) -> syn::ItemImpl {
+    let Entity {
+        ident, jar_path, ..
+    } = entity;
+    
+    // FIXME: It'd be nicer to make a DB parameter, but only because dyn upcasting doesn't work.
+    // Making DB a *parameter* would work except that 
+    let db_dyn_ty: syn::Type = parse_quote! {
+        <#jar_path as salsa::jar::Jar<'_>>::DynDb
+    };let ident_name = Literal::string(&ident.to_string());
+    let all_field_names = entity.all_field_names();
+    let all_field_literals: Vec<_> = all_field_names.iter().map(|i| Literal::string(&i.to_string())).collect();
+    parse_quote! {
+        impl salsa::DebugWithDb<#db_dyn_ty> for #ident
+        {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &#db_dyn_ty) -> std::fmt::Result {
+                // FIXME: We should be invoking `.debug(db)` on the result,
+                // but have to figure out the best way to manage that.
+                f.debug_struct(#ident_name)
+                #(
+                    .field(#all_field_literals, &self.#all_field_names(db))
+                )*
+                .finish()
             }
         }
     }

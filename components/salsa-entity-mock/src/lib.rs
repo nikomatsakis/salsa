@@ -1,6 +1,7 @@
 pub mod cancelled;
 pub mod cycle;
 pub mod database;
+pub mod debug;
 pub mod durability;
 #[doc(hidden)]
 pub mod entity;
@@ -24,6 +25,8 @@ pub use self::cycle::Cycle;
 pub use self::database::Database;
 pub use self::database::ParallelDatabase;
 pub use self::database::Snapshot;
+pub use self::debug::DebugWith;
+pub use self::debug::DebugWithDb;
 pub use self::durability::Durability;
 pub use self::entity::EntityData;
 pub use self::entity::EntityId;
