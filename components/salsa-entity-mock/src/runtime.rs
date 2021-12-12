@@ -1,4 +1,7 @@
-use std::{panic::panic_any, sync::Arc};
+use std::{
+    panic::panic_any,
+    sync::{atomic::Ordering, Arc},
+};
 
 use crate::{
     cycle::CycleRecoveryStrategy,
@@ -91,7 +94,19 @@ impl Runtime {
 
     #[allow(dead_code)]
     pub fn snapshot(&self) -> Self {
-        todo!()
+        if self.local_state.query_in_progress() {
+            panic!("it is not legal to `snapshot` during a query (see salsa-rs/salsa#80)");
+        }
+
+        let id = RuntimeId {
+            counter: self.shared_state.next_id.fetch_add(1, Ordering::SeqCst),
+        };
+
+        Runtime {
+            id,
+            shared_state: self.shared_state.clone(),
+            local_state: Default::default(),
+        }
     }
 
     pub(crate) fn report_tracked_read(
