@@ -42,7 +42,7 @@ where
             ingredient_index,
             key_map: Default::default(),
             value_map: Default::default(),
-            counter: AtomicCell::new(1),
+            counter: AtomicCell::default(),
             reset_at: Revision::start(),
             deleted_entries: Default::default(),
         }
