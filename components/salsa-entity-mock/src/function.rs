@@ -8,6 +8,7 @@ use crate::{
     ingredient::MutIngredient,
     jar::Jar,
     key::{DatabaseKeyIndex, DependencyIndex},
+    runtime::local_state::QueryInputs,
     Cycle, DbWithJar, Id, Revision,
 };
 
@@ -16,6 +17,7 @@ use super::{ingredient::Ingredient, routes::IngredientIndex, AsId};
 mod backdate;
 mod execute;
 mod fetch;
+mod inputs;
 mod lru;
 mod maybe_changed_after;
 mod memo;
@@ -145,6 +147,11 @@ where
 
     fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy {
         C::CYCLE_STRATEGY
+    }
+
+    fn inputs(&self, key_index: Id) -> Option<QueryInputs> {
+        let key = C::key_from_id(key_index);
+        self.inputs(key)
     }
 }
 

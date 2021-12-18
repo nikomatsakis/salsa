@@ -3,7 +3,7 @@ use crate::{
     ingredient::{Ingredient, MutIngredient},
     interned::{InternedData, InternedId, InternedIngredient},
     key::{DatabaseKeyIndex, DependencyIndex},
-    runtime::Runtime,
+    runtime::{local_state::QueryInputs, Runtime},
     Database, IngredientIndex, Revision,
 };
 
@@ -103,6 +103,10 @@ where
 
     fn cycle_recovery_strategy(&self) -> CycleRecoveryStrategy {
         <_ as Ingredient<DB>>::cycle_recovery_strategy(&self.interned)
+    }
+
+    fn inputs(&self, key_index: crate::Id) -> Option<QueryInputs> {
+        None
     }
 }
 

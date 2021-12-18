@@ -5,6 +5,7 @@ use std::hash::Hash;
 use crate::durability::Durability;
 use crate::id::AsId;
 use crate::key::DependencyIndex;
+use crate::runtime::local_state::QueryInputs;
 use crate::runtime::Runtime;
 
 use super::hash::FxDashMap;
@@ -173,5 +174,9 @@ where
 
     fn cycle_recovery_strategy(&self) -> crate::cycle::CycleRecoveryStrategy {
         crate::cycle::CycleRecoveryStrategy::Panic
+    }
+
+    fn inputs(&self, key_index: crate::Id) -> Option<QueryInputs> {
+        None
     }
 }

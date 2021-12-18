@@ -55,7 +55,7 @@ impl QueryRevisions {
 
 /// Every input.
 #[derive(Debug, Clone)]
-pub(crate) struct QueryInputs {
+pub struct QueryInputs {
     /// Inputs that are fully known
     pub(crate) tracked: Arc<[DependencyIndex]>,
 
