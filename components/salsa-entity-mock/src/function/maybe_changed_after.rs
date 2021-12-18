@@ -160,18 +160,15 @@ where
             return true;
         }
 
-        match &old_memo.revisions.inputs {
-            QueryInputs::Untracked => {
-                // Untracked inputs? Have to assume that it changed.
+        if old_memo.revisions.inputs.untracked {
+            // Untracked inputs? Have to assume that it changed.
+            return false;
+        }
+
+        let last_verified_at = old_memo.verified_at.load();
+        for &input in old_memo.revisions.inputs.tracked.iter() {
+            if db.maybe_changed_after(input, last_verified_at) {
                 return false;
-            }
-            QueryInputs::Tracked { inputs } => {
-                let last_verified_at = old_memo.verified_at.load();
-                for &input in inputs.iter() {
-                    if db.maybe_changed_after(input, last_verified_at) {
-                        return false;
-                    }
-                }
             }
         }
 

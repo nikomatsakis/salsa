@@ -55,12 +55,12 @@ impl QueryRevisions {
 
 /// Every input.
 #[derive(Debug, Clone)]
-pub(crate) enum QueryInputs {
-    /// Inputs are fully known
-    Tracked { inputs: Arc<[DependencyIndex]> },
+pub(crate) struct QueryInputs {
+    /// Inputs that are fully known
+    pub(crate) tracked: Arc<[DependencyIndex]>,
 
-    /// Unknown quantity of inputs
-    Untracked,
+    /// Where there any *unknown* inputs?
+    pub(crate) untracked: bool,
 }
 
 impl Default for LocalState {

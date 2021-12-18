@@ -33,8 +33,9 @@ where
         let mut revisions = QueryRevisions {
             changed_at: current_deps.changed_at,
             durability: current_deps.durability,
-            inputs: QueryInputs::Tracked {
-                inputs: std::iter::once(DependencyIndex::from(active_query)).collect(),
+            inputs: QueryInputs {
+                untracked: false,
+                tracked: std::iter::once(DependencyIndex::from(active_query)).collect(),
             },
         };
 

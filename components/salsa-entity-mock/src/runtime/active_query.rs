@@ -20,9 +20,11 @@ pub(super) struct ActiveQuery {
     /// untracked read, this will be set to the most recent revision.
     pub(super) changed_at: Revision,
 
-    /// Set of subqueries that were accessed thus far, or `None` if
-    /// there was an untracked the read.
-    pub(super) dependencies: Option<FxIndexSet<DependencyIndex>>,
+    /// Set of subqueries that were accessed thus far.
+    pub(super) dependencies: FxIndexSet<DependencyIndex>,
+
+    /// True if there was an untracked read.
+    pub(super) untracked_read: bool,
 
     /// Stores the entire cycle, if one is found and this query is part of it.
     pub(super) cycle: Option<Cycle>,
@@ -42,7 +44,8 @@ impl ActiveQuery {
             database_key_index,
             durability: Durability::MAX,
             changed_at: Revision::start(),
-            dependencies: Some(FxIndexSet::default()),
+            dependencies: FxIndexSet::default(),
+            untracked_read: false,
             cycle: None,
             disambiguator_map: Default::default(),
             entities_created: Default::default(),
@@ -55,22 +58,19 @@ impl ActiveQuery {
         durability: Durability,
         revision: Revision,
     ) {
-        if let Some(set) = &mut self.dependencies {
-            set.insert(input);
-        }
-
+        self.dependencies.insert(input);
         self.durability = self.durability.min(durability);
         self.changed_at = self.changed_at.max(revision);
     }
 
     pub(super) fn add_untracked_read(&mut self, changed_at: Revision) {
-        self.dependencies = None;
+        self.untracked_read = true;
         self.durability = Durability::LOW;
         self.changed_at = changed_at;
     }
 
     pub(super) fn add_synthetic_read(&mut self, durability: Durability, revision: Revision) {
-        self.dependencies = None;
+        self.untracked_read = true;
         self.durability = self.durability.min(durability);
         self.changed_at = self.changed_at.max(revision);
     }
@@ -85,15 +85,12 @@ impl ActiveQuery {
     }
 
     pub(crate) fn revisions(&self, runtime: &Runtime) -> QueryRevisions {
-        let inputs = match &self.dependencies {
-            None => QueryInputs::Untracked,
-
-            Some(dependencies) => QueryInputs::Tracked {
-                inputs: if dependencies.is_empty() {
-                    runtime.empty_dependencies()
-                } else {
-                    dependencies.iter().copied().collect()
-                },
+        let inputs = QueryInputs {
+            untracked: self.untracked_read,
+            tracked: if self.dependencies.is_empty() {
+                runtime.empty_dependencies()
+            } else {
+                self.dependencies.iter().copied().collect()
             },
         };
 
@@ -109,23 +106,16 @@ impl ActiveQuery {
     pub(super) fn add_from(&mut self, other: &ActiveQuery) {
         self.changed_at = self.changed_at.max(other.changed_at);
         self.durability = self.durability.min(other.durability);
-        if let Some(other_dependencies) = &other.dependencies {
-            if let Some(my_dependencies) = &mut self.dependencies {
-                my_dependencies.extend(other_dependencies.iter().copied());
-            }
-        } else {
-            self.dependencies = None;
-        }
+        self.untracked_read |= other.untracked_read;
+        self.dependencies.extend(other.dependencies.iter().copied());
     }
 
     /// Removes the participants in `cycle` from my dependencies.
     /// Used during cycle recovery, see [`Runtime::create_cycle_error`].
     pub(super) fn remove_cycle_participants(&mut self, cycle: &Cycle) {
-        if let Some(my_dependencies) = &mut self.dependencies {
-            for p in cycle.participant_keys() {
-                let p: DependencyIndex = p.into();
-                my_dependencies.remove(&p);
-            }
+        for p in cycle.participant_keys() {
+            let p: DependencyIndex = p.into();
+            self.dependencies.remove(&p);
         }
     }
 

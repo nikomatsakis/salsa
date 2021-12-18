@@ -97,7 +97,7 @@ where
         if let Some(memo) = self.memo_map.get(key) {
             // Careful: we can't evict memos with untracked inputs
             // as their values cannot be reconstructed.
-            if let QueryInputs::Untracked = memo.revisions.inputs {
+            if memo.revisions.inputs.untracked {
                 return;
             }
 

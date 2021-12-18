@@ -28,8 +28,9 @@ where
             revisions: QueryRevisions {
                 changed_at: revision,
                 durability,
-                inputs: QueryInputs::Tracked {
-                    inputs: runtime.empty_dependencies(),
+                inputs: QueryInputs {
+                    untracked: false,
+                    tracked: runtime.empty_dependencies(),
                 },
             },
         };
