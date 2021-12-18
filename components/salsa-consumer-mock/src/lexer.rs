@@ -3,8 +3,8 @@ use std::{iter::Peekable, sync::Arc};
 #[salsa::jar(Lexer)]
 pub struct LexerJar(text::Text, token_tree::TokenTree, lex, source_text);
 
-pub trait Lexer: salsa::DbWithJar<LexerJar> {}
-impl<T> Lexer for T where T: salsa::DbWithJar<LexerJar> {}
+pub trait Lexer: salsa::DbWithJar<LexerJar> + salsa::DbWithJar<crate::error::ErrorJar> {}
+impl<T> Lexer for T where T: salsa::DbWithJar<LexerJar> + salsa::DbWithJar<crate::error::ErrorJar> {}
 
 pub mod text;
 pub mod token_tree;
@@ -99,7 +99,10 @@ fn lex_tokens(
                 tokens.push(Token::Number(text));
             }
             _ => {
-                tokens.push(Token::Unknown(ch));
+                crate::error::Diagnostics::push(
+                    db,
+                    crate::error::Diagnostic(format!("unknown token `{}`", ch)),
+                );
             }
         }
     }

@@ -132,6 +132,14 @@ fn has_jars_dyn_impl(input: &syn::ItemStruct, storage: &syn::Ident) -> syn::Item
                 let ingredient = self.#storage.ingredient(ingredient_index);
                 ingredient.cycle_recovery_strategy()
             }
+
+            fn inputs(
+                &self,
+                index: salsa::DatabaseKeyIndex,
+            ) -> Option<salsa::runtime::local_state::QueryInputs> {
+                let ingredient = self.#storage.ingredient(index.ingredient_index());
+                ingredient.inputs(index.key_index())
+            }
         }
     }
 }

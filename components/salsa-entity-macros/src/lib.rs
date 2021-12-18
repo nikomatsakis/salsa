@@ -25,6 +25,7 @@ macro_rules! parse_quote_spanned {
     }
 }
 
+mod accumulator;
 mod component;
 mod configuration;
 mod data_item;
@@ -35,6 +36,11 @@ mod interned;
 mod jar;
 mod memoized;
 mod options;
+
+#[proc_macro_attribute]
+pub fn accumulator(args: TokenStream, input: TokenStream) -> TokenStream {
+    accumulator::accumulator(args, input)
+}
 
 #[proc_macro_attribute]
 pub fn jar(args: TokenStream, input: TokenStream) -> TokenStream {

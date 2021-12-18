@@ -14,6 +14,7 @@ use crate::{
 
 use super::{ingredient::Ingredient, routes::IngredientIndex, AsId};
 
+mod accumulated;
 mod backdate;
 mod execute;
 mod fetch;

@@ -1,4 +1,4 @@
-#[salsa::db(super::jar0::Jar0, super::lexer::LexerJar)]
+#[salsa::db(crate::jar0::Jar0, crate::lexer::LexerJar, crate::error::ErrorJar)]
 pub(crate) struct TheDatabase {
     storage: salsa::Storage<Self>,
 }

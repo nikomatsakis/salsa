@@ -17,7 +17,7 @@ use super::{entity::Disambiguator, IngredientIndex};
 
 mod active_query;
 mod dependency_graph;
-pub(crate) mod local_state;
+pub mod local_state;
 mod shared_state;
 
 #[allow(dead_code)]
@@ -54,6 +54,13 @@ pub(crate) struct StampedValue<V> {
     pub(crate) changed_at: Revision,
 }
 
+impl<V> StampedValue<V> {
+    pub(crate) fn merge_revision_info<U>(&mut self, other: &StampedValue<U>) {
+        self.durability = self.durability.min(other.durability);
+        self.changed_at = self.changed_at.max(other.changed_at);
+    }
+}
+
 impl Default for Runtime {
     fn default() -> Self {
         Runtime {
@@ -84,7 +91,7 @@ impl Runtime {
 
     /// Returns the index of the active query along with its *current* durability/changed-at
     /// information. As the query continues to execute, naturally, that information may change.
-    pub(super) fn active_query(&self) -> Option<(DatabaseKeyIndex, StampedValue<()>)> {
+    pub(crate) fn active_query(&self) -> Option<(DatabaseKeyIndex, StampedValue<()>)> {
         self.local_state.active_query()
     }
 

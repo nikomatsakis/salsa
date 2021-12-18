@@ -6,8 +6,9 @@ use crate::cycle::CycleRecoveryStrategy;
 use crate::ingredient::Ingredient;
 use crate::jar::Jar;
 use crate::key::DependencyIndex;
+use crate::runtime::local_state::QueryInputs;
 use crate::runtime::Runtime;
-use crate::{Database, IngredientIndex};
+use crate::{Database, DatabaseKeyIndex, IngredientIndex};
 
 use super::routes::Ingredients;
 use super::{ParallelDatabase, Revision};
@@ -158,6 +159,8 @@ pub trait HasJarsDyn {
     fn maybe_changed_after(&self, input: DependencyIndex, revision: Revision) -> bool;
 
     fn cycle_recovery_strategy(&self, input: IngredientIndex) -> CycleRecoveryStrategy;
+
+    fn inputs(&self, input: DatabaseKeyIndex) -> Option<QueryInputs>;
 }
 
 pub trait HasIngredientsFor<I>

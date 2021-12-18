@@ -1,3 +1,4 @@
+pub mod accumulator;
 pub mod cancelled;
 pub mod cycle;
 pub mod database;
@@ -40,6 +41,7 @@ pub use self::routes::IngredientIndex;
 pub use self::runtime::Runtime;
 pub use self::storage::DbWithJar;
 pub use self::storage::Storage;
+pub use salsa_entity_macros::accumulator;
 pub use salsa_entity_macros::component;
 pub use salsa_entity_macros::db;
 pub use salsa_entity_macros::entity;

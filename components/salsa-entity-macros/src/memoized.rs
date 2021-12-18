@@ -1,4 +1,5 @@
 use proc_macro2::Literal;
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{ItemFn, ReturnType, Token};
@@ -165,54 +166,22 @@ fn wrapper_fns(
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
 ) -> syn::Result<(syn::ItemFn, syn::ItemImpl)> {
-    let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
-
-    let (ref_getter_block, setter_block) = wrapper_fn_bodies(args, item_fn, struct_ty, &value_arg)
-        .unwrap_or_else(|msg| {
-            let msg = proc_macro2::Literal::string(msg);
-            (
-                parse_quote_spanned! {
-                    item_fn.sig.span() => {compile_error!(#msg)}
-                },
-                parse_quote!({}),
-            )
-        });
-
     // The "getter" has same signature as the original:
-    let mut getter_fn = getter_fn(args, item_fn, struct_ty)?;
+    let getter_fn = getter_fn(args, item_fn, struct_ty)?;
 
-    let ref_getter_fn = ref_getter_fn(item_fn, ref_getter_block);
+    let ref_getter_fn = ref_getter_fn(args, item_fn, struct_ty)?;
+    let accumulated_fn = accumulated_fn(args, item_fn, struct_ty)?;
+    let setter_fn = setter_fn(args, item_fn, struct_ty)?;
 
-    // The setter has *always* the same signature as the original:
-    // but it takes a value arg and has no return type.
-    let mut setter_sig = item_fn.sig.clone();
-    let value_ty = configuration::value_ty(&item_fn.sig);
-    setter_sig.ident = syn::Ident::new("set", item_fn.sig.ident.span());
-    match &mut setter_sig.inputs[0] {
-        // change from `&dyn ...` to `&mut dyn...`
-        syn::FnArg::Receiver(_) => (),
-        syn::FnArg::Typed(pat_ty) => match &mut *pat_ty.ty {
-            syn::Type::Reference(ty) => {
-                ty.mutability = Some(Token![mut](ty.and_token.span()));
-            }
-            _ => {}
-        },
-    }
-    setter_sig.inputs.push(parse_quote!(#value_arg: #value_ty));
-    setter_sig.output = ReturnType::Default;
-    let setter_fn = syn::ImplItemMethod {
-        attrs: vec![],
-        vis: item_fn.vis.clone(),
-        defaultness: None,
-        sig: setter_sig,
-        block: setter_block,
-    };
     let setter_impl: syn::ItemImpl = parse_quote! {
         impl #struct_ty {
             #ref_getter_fn
             #setter_fn
+            #accumulated_fn
         }
     };
+
+    eprintln!("setter_impl = {}", setter_impl.to_token_stream());
 
     Ok((getter_fn, setter_impl))
 }
@@ -238,7 +207,7 @@ fn getter_fn(
         })
         .collect::<Result<_, _>>()?;
     if args.options.is_ref.is_some() {
-        getter_fn = make_fn_return_ref(getter_fn);
+        getter_fn = make_fn_return_ref(getter_fn)?;
         getter_fn.block = Box::new(parse_quote_spanned! {
             item_fn.block.span() => {
                 #struct_ty::get(#(#arg_idents,)*)
@@ -254,28 +223,107 @@ fn getter_fn(
     Ok(getter_fn)
 }
 
-fn ref_getter_fn(item_fn: &syn::ItemFn, ref_getter_block: syn::Block) -> syn::ItemFn {
+fn ref_getter_fn(
+    args: &Args,
+    item_fn: &syn::ItemFn,
+    struct_ty: &syn::Type,
+) -> syn::Result<syn::ItemFn> {
+    let jar_ty = &args.jar_ty;
     let mut ref_getter_fn = item_fn.clone();
     ref_getter_fn.sig.ident = syn::Ident::new("get", item_fn.sig.ident.span());
-    ref_getter_fn.block = Box::new(ref_getter_block);
-    ref_getter_fn = make_fn_return_ref(ref_getter_fn);
-    ref_getter_fn
+    ref_getter_fn = make_fn_return_ref(ref_getter_fn)?;
+
+    let (db_var, arg_names) = fn_args(item_fn)?;
+    ref_getter_fn.block = parse_quote! {
+        {
+            let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(#db_var);
+            let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
+            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
+            __ingredients.function.fetch(#db_var, __key)
+        }
+    };
+
+    Ok(ref_getter_fn)
 }
 
-fn make_fn_return_ref(mut ref_getter_fn: syn::ItemFn) -> syn::ItemFn {
+fn setter_fn(
+    args: &Args,
+    item_fn: &syn::ItemFn,
+    struct_ty: &syn::Type,
+) -> syn::Result<syn::ImplItemMethod> {
+    // The setter has *always* the same signature as the original:
+    // but it takes a value arg and has no return type.
+    let jar_ty = &args.jar_ty;
+    let (db_var, arg_names) = fn_args(item_fn)?;
+    let mut setter_sig = item_fn.sig.clone();
+    let value_ty = configuration::value_ty(&item_fn.sig);
+    setter_sig.ident = syn::Ident::new("set", item_fn.sig.ident.span());
+    match &mut setter_sig.inputs[0] {
+        // change from `&dyn ...` to `&mut dyn...`
+        syn::FnArg::Receiver(_) => unreachable!(), // early fns should have detected
+        syn::FnArg::Typed(pat_ty) => match &mut *pat_ty.ty {
+            syn::Type::Reference(ty) => {
+                ty.mutability = Some(Token![mut](ty.and_token.span()));
+            }
+            _ => unreachable!(), // early fns should have detected
+        },
+    }
+    let value_arg = syn::Ident::new("__value", item_fn.sig.output.span());
+    setter_sig.inputs.push(parse_quote!(#value_arg: #value_ty));
+    setter_sig.output = ReturnType::Default;
+    Ok(syn::ImplItemMethod {
+        attrs: vec![],
+        vis: item_fn.vis.clone(),
+        defaultness: None,
+        sig: setter_sig,
+        block: parse_quote! {
+            {
+                let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar_mut(#db_var);
+                let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient_mut(__jar);
+                let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
+                __ingredients.function.store(__runtime, __key, #value_arg, salsa::Durability::LOW)
+            }
+        },
+    })
+}
+
+fn make_fn_return_ref(mut ref_getter_fn: syn::ItemFn) -> syn::Result<syn::ItemFn> {
     // The 0th input should be a `&dyn Foo`. We need to ensure
     // it has a named lifetime parameter.
-    let db_lifetime;
-    match &mut ref_getter_fn.sig.inputs[0] {
-        // change from `&dyn ...` to `&mut dyn...`
-        syn::FnArg::Receiver(_) => db_lifetime = None,
+    let (db_lifetime, _) = db_lifetime_and_ty(&mut ref_getter_fn)?;
+
+    let (right_arrow, elem) = match ref_getter_fn.sig.output {
+        ReturnType::Default => (
+            syn::Token![->](ref_getter_fn.sig.paren_token.span),
+            parse_quote!(()),
+        ),
+        ReturnType::Type(rarrow, ty) => (rarrow, ty),
+    };
+
+    let ref_output = syn::TypeReference {
+        and_token: syn::Token![&](right_arrow.span()),
+        lifetime: Some(db_lifetime),
+        mutability: None,
+        elem,
+    };
+
+    ref_getter_fn.sig.output = syn::ReturnType::Type(right_arrow, Box::new(ref_output.into()));
+
+    Ok(ref_getter_fn)
+}
+
+fn db_lifetime_and_ty(func: &mut syn::ItemFn) -> syn::Result<(syn::Lifetime, &syn::Type)> {
+    match &mut func.sig.inputs[0] {
+        syn::FnArg::Receiver(r) => {
+            return Err(syn::Error::new(r.span(), "expected database, not self"))
+        }
         syn::FnArg::Typed(pat_ty) => match &mut *pat_ty.ty {
             syn::Type::Reference(ty) => match &ty.lifetime {
-                Some(lt) => db_lifetime = Some(lt.clone()),
+                Some(lt) => Ok((lt.clone(), &pat_ty.ty)),
                 None => {
                     let and_token_span = ty.and_token.span();
                     let ident = syn::Ident::new("__db", and_token_span);
-                    ref_getter_fn.sig.generics.params.insert(
+                    func.sig.generics.params.insert(
                         0,
                         syn::LifetimeDef {
                             attrs: vec![],
@@ -288,93 +336,95 @@ fn make_fn_return_ref(mut ref_getter_fn: syn::ItemFn) -> syn::ItemFn {
                         }
                         .into(),
                     );
-                    db_lifetime = Some(syn::Lifetime {
+                    let db_lifetime = syn::Lifetime {
                         apostrophe: and_token_span,
                         ident,
-                    });
-                    ty.lifetime = db_lifetime.clone();
+                    };
+                    ty.lifetime = Some(db_lifetime.clone());
+                    Ok((db_lifetime, &pat_ty.ty))
                 }
             },
-            _ => db_lifetime = None,
+            _ => {
+                return Err(syn::Error::new(
+                    pat_ty.span(),
+                    "expected database to be a `&` type",
+                ))
+            }
         },
     }
-
-    let (right_arrow, elem) = match ref_getter_fn.sig.output {
-        ReturnType::Default => (
-            syn::Token![->](ref_getter_fn.sig.paren_token.span),
-            parse_quote!(()),
-        ),
-        ReturnType::Type(rarrow, ty) => (rarrow, ty),
-    };
-
-    let ref_output = syn::TypeReference {
-        and_token: syn::Token![&](right_arrow.span()),
-        lifetime: db_lifetime,
-        mutability: None,
-        elem,
-    };
-
-    ref_getter_fn.sig.output = syn::ReturnType::Type(right_arrow, Box::new(ref_output.into()));
-
-    ref_getter_fn
 }
 
-fn wrapper_fn_bodies(
+fn accumulated_fn(
     args: &Args,
     item_fn: &syn::ItemFn,
     struct_ty: &syn::Type,
-    value_arg: &syn::Ident,
-) -> Result<(syn::Block, syn::Block), &'static str> {
+) -> syn::Result<syn::ItemFn> {
     let jar_ty = &args.jar_ty;
 
-    // Find the name `db` that user gave to the second argument.
-    // They can't have done any "funny business" (such as a pattern
-    // like `(db, _)` or whatever) or we get an error.
-    let db_var = if item_fn.sig.inputs.len() == 0 {
-        Err("method needs a database argument")
-    } else {
-        match &item_fn.sig.inputs[0] {
-            syn::FnArg::Receiver(_) => Err("first argment be the database"),
-            syn::FnArg::Typed(ty) => match &*ty.pat {
-                syn::Pat::Ident(ident) => Ok(ident.ident.clone()),
-                _ => Err("first argment must be given a name"),
-            },
-        }
+    let mut accumulated_fn = item_fn.clone();
+    accumulated_fn.sig.ident = syn::Ident::new("accumulated", item_fn.sig.ident.span());
+    accumulated_fn.sig.generics.params.push(parse_quote! {
+        __A: salsa::accumulator::Accumulator
+    });
+    accumulated_fn.sig.output = parse_quote! {
+        -> Vec<<__A as salsa::accumulator::Accumulator>::Data>
     };
-    let db_var = db_var?;
 
-    let arg_names: Result<Vec<syn::Ident>, &str> = item_fn
-        .sig
-        .inputs
-        .iter()
-        .skip(1)
-        .map(|arg| match arg {
-            syn::FnArg::Receiver(_) => Err("first argment be the database"),
-            syn::FnArg::Typed(pat_ty) => match &*pat_ty.pat {
-                syn::Pat::Ident(ident) => Ok(ident.ident.clone()),
-                _ => Err("all arguments must be given names"),
-            },
-        })
-        .collect();
-    let arg_names = arg_names?;
+    let (db_lifetime, _) = db_lifetime_and_ty(&mut accumulated_fn)?;
+    let predicate: syn::WherePredicate = parse_quote!(<#jar_ty as salsa::jar::Jar<#db_lifetime>>::DynDb: salsa::storage::HasJar<<__A as salsa::accumulator::Accumulator>::Jar>);
 
-    let ref_getter: syn::Block = parse_quote! {
+    if let Some(where_clause) = &mut accumulated_fn.sig.generics.where_clause {
+        where_clause.predicates.push(predicate);
+    } else {
+        accumulated_fn.sig.generics.where_clause = parse_quote!(where #predicate);
+    }
+
+    let (db_var, arg_names) = fn_args(item_fn)?;
+    accumulated_fn.block = parse_quote! {
         {
             let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar(#db_var);
             let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient(__jar);
             let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
-            __ingredients.function.fetch(#db_var, __key)
+            __ingredients.function.accumulated::<__A>(#db_var, __key)
         }
     };
 
-    let setter: syn::Block = parse_quote! {
-        {
-            let (__jar, __runtime) = <_ as salsa::storage::HasJar<#jar_ty>>::jar_mut(#db_var);
-            let __ingredients = <_ as salsa::storage::HasIngredientsFor<#struct_ty>>::ingredient_mut(__jar);
-            let __key = __ingredients.intern_map.intern(__runtime, (#(#arg_names,)*));
-            __ingredients.function.store(__runtime, __key, #value_arg, salsa::Durability::LOW)
-        }
-    };
+    Ok(accumulated_fn)
+}
 
-    Ok((ref_getter, setter))
+fn fn_args(item_fn: &syn::ItemFn) -> syn::Result<(proc_macro2::Ident, Vec<proc_macro2::Ident>)> {
+    // Check that we have no receiver and that all argments have names
+    if item_fn.sig.inputs.len() == 0 {
+        return Err(syn::Error::new(
+            item_fn.sig.span(),
+            "method needs a database argument",
+        ));
+    }
+
+    let mut input_names = vec![];
+    for input in &item_fn.sig.inputs {
+        match input {
+            syn::FnArg::Receiver(r) => {
+                return Err(syn::Error::new(r.span(), "no self argument expected"));
+            }
+            syn::FnArg::Typed(pat_ty) => match &*pat_ty.pat {
+                syn::Pat::Ident(ident) => {
+                    input_names.push(ident.ident.clone());
+                }
+
+                _ => {
+                    return Err(syn::Error::new(
+                        pat_ty.pat.span(),
+                        "all arguments must be given names",
+                    ));
+                }
+            },
+        }
+    }
+
+    // Database is the first argument
+    let db_var = input_names[0].clone();
+    let arg_names = input_names[1..].to_owned();
+
+    Ok((db_var, arg_names))
 }

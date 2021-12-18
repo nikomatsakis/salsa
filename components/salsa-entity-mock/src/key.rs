@@ -29,6 +29,10 @@ impl DependencyIndex {
         self.ingredient_index
     }
 
+    pub fn key_index(self) -> Option<Id> {
+        self.key_index
+    }
+
     pub fn debug<DB: ?Sized + Database>(self, _db: &DB) -> impl Debug + '_ {
         self // FIXME
     }
@@ -44,6 +48,14 @@ pub struct DatabaseKeyIndex {
 }
 
 impl DatabaseKeyIndex {
+    pub fn ingredient_index(self) -> IngredientIndex {
+        self.ingredient_index
+    }
+
+    pub fn key_index(self) -> Id {
+        self.key_index
+    }
+
     pub fn debug<DB: ?Sized + Database>(self, db: &DB) -> impl Debug + '_ {
         let i: DependencyIndex = self.into();
         i.debug(db)
