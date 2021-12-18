@@ -181,8 +181,6 @@ fn wrapper_fns(
         }
     };
 
-    eprintln!("setter_impl = {}", setter_impl.to_token_stream());
-
     Ok((getter_fn, setter_impl))
 }
 
