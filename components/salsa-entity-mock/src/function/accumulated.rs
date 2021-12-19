@@ -1,4 +1,5 @@
 use crate::{
+    hash::FxHashSet,
     key::DependencyIndex,
     runtime::local_state::QueryInputs,
     storage::{HasJar, HasJarsDyn},
@@ -39,11 +40,15 @@ where
 
 struct Stack {
     v: Vec<DatabaseKeyIndex>,
+    s: FxHashSet<DatabaseKeyIndex>,
 }
 
 impl Stack {
     fn new(start: DatabaseKeyIndex) -> Self {
-        Self { v: vec![start] }
+        Self {
+            v: vec![start],
+            s: FxHashSet::default(),
+        }
     }
 
     fn pop(&mut self) -> Option<DatabaseKeyIndex> {
@@ -62,10 +67,13 @@ impl Stack {
         } in inputs.tracked.iter().copied()
         {
             if let Some(key_index) = key_index {
-                self.v.push(DatabaseKeyIndex {
+                let i = DatabaseKeyIndex {
                     ingredient_index,
                     key_index,
-                });
+                };
+                if self.s.insert(i) {
+                    self.v.push(i);
+                }
             }
         }
     }
