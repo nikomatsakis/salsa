@@ -28,6 +28,7 @@ mod kw {
 }
 
 pub struct Entity {
+    attrs: Vec<syn::Attribute>,
     _entity: kw::entity,
     ident: syn::Ident,
     _in_token: syn::Token![in],
@@ -38,6 +39,7 @@ pub struct Entity {
 impl syn::parse::Parse for Entity {
     fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
         Ok(Self {
+            attrs: syn::Attribute::parse_outer(input)?,
             _entity: syn::parse::Parse::parse(input)?,
             ident: syn::parse::Parse::parse(input)?,
             _in_token: syn::parse::Parse::parse(input)?,
@@ -153,8 +155,10 @@ fn entity_contents(entity: &Entity) -> proc_macro2::TokenStream {
 }
 
 fn id_struct(entity: &Entity) -> syn::ItemStruct {
+    let attrs = &entity.attrs;
     let ident = &entity.ident;
     parse_quote! {
+        #(#attrs)*
         #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Debug)]
         pub struct #ident(salsa::Id);
     }
