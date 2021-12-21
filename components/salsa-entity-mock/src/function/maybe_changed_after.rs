@@ -3,10 +3,7 @@ use arc_swap::Guard;
 use crate::{
     database::AsSalsaDatabase,
     key::DatabaseKeyIndex,
-    runtime::{
-        local_state::{ActiveQueryGuard, QueryInputs},
-        StampedValue,
-    },
+    runtime::{local_state::ActiveQueryGuard, StampedValue},
     storage::HasJarsDyn,
     Database, Revision, Runtime,
 };

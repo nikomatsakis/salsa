@@ -1,7 +1,5 @@
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, ItemImpl, ItemStruct, Token};
-
-use crate::configuration::{self, Configuration, CycleRecoveryStrategy};
+use syn::{ItemStruct, Token};
 
 // #[salsa::accumulator(in Jar0)]
 // struct Accumulator(DataType);
@@ -75,11 +73,10 @@ fn data_ty(struct_item: &syn::ItemStruct) -> syn::Result<&syn::Type> {
 }
 
 fn struct_item_out(
-    args: &Args,
+    _args: &Args,
     struct_item: &syn::ItemStruct,
     data_ty: &syn::Type,
 ) -> syn::ItemStruct {
-    let jar_ty = &args.jar_ty;
     let mut struct_item_out = struct_item.clone();
     struct_item_out.fields = syn::Fields::Unnamed(parse_quote! {
             (std::marker::PhantomData<#data_ty>)

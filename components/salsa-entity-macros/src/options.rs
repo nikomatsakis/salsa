@@ -8,10 +8,6 @@ pub(crate) struct Options {
 }
 
 impl Options {
-    pub(crate) fn return_ref(&self) -> bool {
-        self.is_ref.is_some()
-    }
-
     pub(crate) fn should_backdate(&self) -> bool {
         self.no_eq.is_none()
     }

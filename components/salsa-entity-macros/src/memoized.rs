@@ -1,5 +1,4 @@
 use proc_macro2::Literal;
-use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{ItemFn, ReturnType, Token};

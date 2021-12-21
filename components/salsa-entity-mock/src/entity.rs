@@ -105,7 +105,7 @@ where
         <_ as Ingredient<DB>>::cycle_recovery_strategy(&self.interned)
     }
 
-    fn inputs(&self, key_index: crate::Id) -> Option<QueryInputs> {
+    fn inputs(&self, _key_index: crate::Id) -> Option<QueryInputs> {
         None
     }
 }

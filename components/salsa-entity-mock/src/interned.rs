@@ -176,7 +176,7 @@ where
         crate::cycle::CycleRecoveryStrategy::Panic
     }
 
-    fn inputs(&self, key_index: crate::Id) -> Option<QueryInputs> {
+    fn inputs(&self, _key_index: crate::Id) -> Option<QueryInputs> {
         None
     }
 }

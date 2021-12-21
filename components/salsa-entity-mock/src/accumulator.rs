@@ -72,7 +72,7 @@ impl<DB: ?Sized, Data> Ingredient<DB> for AccumulatorIngredient<Data>
 where
     Data: Clone,
 {
-    fn maybe_changed_after(&self, db: &DB, input: DependencyIndex, revision: Revision) -> bool {
+    fn maybe_changed_after(&self, _db: &DB, _input: DependencyIndex, _revision: Revision) -> bool {
         panic!("nothing should ever depend on an accumulator directly")
     }
 
@@ -80,7 +80,7 @@ where
         CycleRecoveryStrategy::Panic
     }
 
-    fn inputs(&self, key_index: crate::Id) -> Option<QueryInputs> {
+    fn inputs(&self, _key_index: crate::Id) -> Option<QueryInputs> {
         None
     }
 }
