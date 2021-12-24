@@ -45,15 +45,15 @@ impl From<usize> for Id {
     }
 }
 
-impl Into<u32> for Id {
-    fn into(self) -> u32 {
-        self.as_u32()
+impl From<Id> for u32 {
+    fn from(n: Id) -> Self {
+        n.as_u32()
     }
 }
 
-impl Into<usize> for Id {
-    fn into(self) -> usize {
-        self.as_u32() as usize
+impl From<Id> for usize {
+    fn from(n: Id) -> usize {
+        n.as_u32() as usize
     }
 }
 
