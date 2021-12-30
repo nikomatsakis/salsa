@@ -5,19 +5,22 @@ use std::{
 };
 
 pub trait DebugWithDb<Db: ?Sized> {
-    fn debug<'me>(&'me self, db: &'me Db) -> DebugWith<'me, Db> {
-        DebugWith {
-            value: Box::new(self),
-            db,
-        }
-    }
-
-    fn into_debug<'me>(self, db: &'me Db) -> DebugWith<'me, Db>
+    fn debug<'me, 'db>(&'me self, db: &'me Db) -> DebugWith<'me, Db>
     where
         Self: Sized + 'me,
     {
         DebugWith {
-            value: Box::new(self),
+            value: BoxRef::Ref(self),
+            db,
+        }
+    }
+
+    fn into_debug<'me, 'db>(self, db: &'me Db) -> DebugWith<'me, Db>
+    where
+        Self: Sized + 'me,
+    {
+        DebugWith {
+            value: BoxRef::Box(Box::new(self)),
             db,
         }
     }
@@ -26,8 +29,24 @@ pub trait DebugWithDb<Db: ?Sized> {
 }
 
 pub struct DebugWith<'me, Db: ?Sized> {
-    value: Box<dyn DebugWithDb<Db> + 'me>,
+    value: BoxRef<'me, dyn DebugWithDb<Db> + 'me>,
     db: &'me Db,
+}
+
+enum BoxRef<'me, T: ?Sized> {
+    Box(Box<T>),
+    Ref(&'me T),
+}
+
+impl<T: ?Sized> std::ops::Deref for BoxRef<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            BoxRef::Box(b) => b,
+            BoxRef::Ref(r) => r,
+        }
+    }
 }
 
 impl<D: ?Sized> std::fmt::Debug for DebugWith<'_, D> {
@@ -36,35 +55,36 @@ impl<D: ?Sized> std::fmt::Debug for DebugWith<'_, D> {
     }
 }
 
-impl<Db: ?Sized, T> DebugWithDb<Db> for &T
+impl<Db: ?Sized, T: ?Sized> DebugWithDb<Db> for &T
 where
-    T: DebugWithDb<Db> + ?Sized,
+    T: DebugWithDb<Db>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         T::fmt(self, f, db)
     }
 }
 
-impl<Db: ?Sized, T> DebugWithDb<Db> for Box<T>
+impl<Db: ?Sized, T: ?Sized> DebugWithDb<Db> for Box<T>
 where
-    T: DebugWithDb<Db> + ?Sized,
+    T: DebugWithDb<Db>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         T::fmt(self, f, db)
     }
 }
+
 impl<Db: ?Sized, T> DebugWithDb<Db> for Rc<T>
 where
-    T: DebugWithDb<Db> + ?Sized,
+    T: DebugWithDb<Db>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         T::fmt(self, f, db)
     }
 }
 
-impl<Db: ?Sized, T> DebugWithDb<Db> for Arc<T>
+impl<Db: ?Sized, T: ?Sized> DebugWithDb<Db> for Arc<T>
 where
-    T: DebugWithDb<Db> + ?Sized,
+    T: DebugWithDb<Db>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         T::fmt(self, f, db)
