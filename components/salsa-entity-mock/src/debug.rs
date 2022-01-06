@@ -101,6 +101,16 @@ where
     }
 }
 
+impl<Db: ?Sized, T> DebugWithDb<Db> for Option<T>
+where
+    T: DebugWithDb<Db>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        let me = self.as_ref().map(|v| v.debug(db));
+        std::fmt::Debug::fmt(&me, f)
+    }
+}
+
 impl<Db: ?Sized, K, V, S> DebugWithDb<Db> for HashMap<K, V, S>
 where
     K: DebugWithDb<Db>,
