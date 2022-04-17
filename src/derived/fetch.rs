@@ -68,6 +68,10 @@ where
             if let Some(value) = &memo.value {
                 let runtime = db.salsa_runtime();
                 if self.shallow_verify_memo(db, runtime, self.database_key_index(key_index), memo) {
+                    runtime.log(
+                        "shallow_verify_memo_successful",
+                        self.database_key_index(key_index).debug(db),
+                    );
                     return Some(memo.revisions.stamped_value(value.clone()));
                 }
             }
@@ -95,6 +99,10 @@ where
         if let Some(old_memo) = &opt_old_memo {
             if let Some(value) = &old_memo.value {
                 if self.deep_verify_memo(db, old_memo, &active_query) {
+                    runtime.log(
+                        "deep_verify_memo_successful",
+                        self.database_key_index(key_index).debug(db),
+                    );
                     return Some(old_memo.revisions.stamped_value(value.clone()));
                 }
             }

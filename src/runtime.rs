@@ -77,6 +77,12 @@ impl Runtime {
         Self::default()
     }
 
+    pub(crate) fn log(&self, text: &str, key: impl std::fmt::Debug) {
+        if crate::logs_enabled() {
+            eprintln!("{text}({key:?})");
+        }
+    }
+
     /// See [`crate::storage::Storage::snapshot`].
     pub(crate) fn snapshot(&self) -> Self {
         if self.local_state.query_in_progress() {

@@ -33,6 +33,7 @@ where
         let database_key_index = active_query.database_key_index;
 
         log::info!("{:?}: executing query", database_key_index.debug(db));
+        runtime.log("execute_start", database_key_index.debug(db));
 
         db.salsa_event(Event {
             runtime_id: db.salsa_runtime().id(),
@@ -115,6 +116,14 @@ where
             database_key_index.debug(db),
             revisions
         );
+
+        if revisions.changed_at < revision_now {
+            runtime.log("execute_green", database_key_index.debug(db));
+        } else {
+            runtime.log("execute_red", database_key_index.debug(db));
+        }
+
+        runtime.log("execute", self.database_key_index(key_index).debug(db));
 
         self.memo_map.insert(
             key_index,

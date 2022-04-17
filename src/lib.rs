@@ -37,6 +37,7 @@ use std::fmt::{self, Debug};
 use std::hash::Hash;
 use std::panic::AssertUnwindSafe;
 use std::panic::{self, UnwindSafe};
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 pub use crate::durability::Durability;
@@ -754,3 +755,22 @@ impl Cycle {
 extern crate salsa_macros;
 use plumbing::HasQueryGroup;
 pub use salsa_macros::*;
+
+static LOGS: AtomicUsize = AtomicUsize::new(0);
+
+/// Start dumping out data to stderr about which queries it is able to validate etc.
+///
+/// The intended usage pattern is to insert `enable_logs` at the top of something that
+/// seems to be taking longer than anticipated.
+pub fn enable_logs() {
+    LOGS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Stop dumping out data to stderr about which queries it is able to validate etc.
+pub fn disable_logs() {
+    LOGS.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn logs_enabled() -> bool {
+    LOGS.load(std::sync::atomic::Ordering::Relaxed) > 0
+}
