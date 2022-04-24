@@ -63,7 +63,7 @@ impl<DB: HasJars> Ingredients<DB> {
     }
 
     /// As [`Self::push`] but for an ingredient that wants a callback whenever
-    /// a new revision is published. T+ Send + Synchese callbacks are used to clear out old data.
+    /// a new revision is published. These callbacks are used to clear out old data.
     pub fn push_mut(
         &mut self,
         route: impl (Fn(&DB::Jars) -> &dyn Ingredient<DB>) + Send + Sync + 'static,
