@@ -2,7 +2,7 @@
 pub struct Jar0(
     Entity0,
     Ty0,
-    EntityComponent0,
+    entity_component,
     my_func,
     my_func_ref,
     my_func_ref_eq,
@@ -22,13 +22,6 @@ pub struct EntityData0 {
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct TyData0 {
     id: u32,
-}
-
-#[salsa::component(EntityComponent0 in Jar0)]
-impl Entity0 {
-    fn method(self, _db: &dyn Jar0Db) -> String {
-        format!("Hello, world")
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -61,6 +54,11 @@ salsa::entity2! {
     }
 }
 
+#[salsa::component(in Jar0)]
+fn entity_component(db: &dyn Jar0Db, e: Entity2) -> String {
+    format!("Hello, world (f0={:?})", e.f0(db))
+}
+
 #[allow(dead_code, unused_variables)]
 fn test(db: &dyn Jar0Db) {
     let x = Entity2::new(db, format!(""), format!(""), 22, NotCloneNotEq(44));
@@ -68,4 +66,6 @@ fn test(db: &dyn Jar0Db) {
     let v: String = x.f1(db);
     let v: u32 = x.f2(db);
     let v: &NotCloneNotEq = x.f3(db);
+
+    let ec = entity_component(db, x);
 }
