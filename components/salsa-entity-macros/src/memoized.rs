@@ -32,6 +32,10 @@ pub(crate) fn memoized(
         #struct_item
         #configuration_impl
         #ingredients_for_impl
+
+        // we generate a `'db` lifetime that clippy
+        // sometimes doesn't like
+        #[allow(clippy::needless_lifetimes)]
         #getter
         #setter
     })
@@ -174,8 +178,13 @@ fn wrapper_fns(
 
     let setter_impl: syn::ItemImpl = parse_quote! {
         impl #struct_ty {
+            #[allow(dead_code, clippy::needless_lifetimes)]
             #ref_getter_fn
+
+            #[allow(dead_code, clippy::needless_lifetimes)]
             #setter_fn
+
+            #[allow(dead_code, clippy::needless_lifetimes)]
             #accumulated_fn
         }
     };
