@@ -23,6 +23,7 @@ pub mod runtime;
 pub mod salsa_struct;
 pub mod setter;
 pub mod storage;
+pub mod table;
 pub mod tracked_struct;
 pub mod update;
 
