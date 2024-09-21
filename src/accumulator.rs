@@ -128,6 +128,10 @@ impl<A: Accumulator> Ingredient for IngredientImpl<A> {
         _executor: DatabaseKeyIndex,
         _stale_output_key: Option<crate::Id>,
     ) {
+        panic!(
+            "unexpected `remove_stale_output` called on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn requires_reset_for_new_revision(&self) -> bool {
