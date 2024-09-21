@@ -439,7 +439,7 @@ where
     /// Using this method on an entity id that MAY be used in the current revision will lead to
     /// unspecified results (but not UB). See [`InternedIngredient::delete_index`] for more
     /// discussion and important considerations.
-    pub(crate) fn delete_entity(&self, db: &dyn crate::Database, id: Id) {
+    pub(crate) fn discard_stale_instance(&self, db: &dyn crate::Database, id: Id) {
         db.salsa_event(&|| Event {
             thread_id: std::thread::current().id(),
             kind: crate::EventKind::DidDiscard {
@@ -492,7 +492,7 @@ where
             for stale_output in memo.origin().outputs() {
                 zalsa
                     .lookup_ingredient(stale_output.ingredient_index)
-                    .remove_stale_output(db, executor, stale_output.key_index);
+                    .discard_stale_output(db, executor, stale_output.key_index);
             }
         }
 
@@ -579,7 +579,7 @@ where
         // FIXME: delete this method
     }
 
-    fn remove_stale_output(
+    fn discard_stale_output(
         &self,
         db: &dyn Database,
         _executor: DatabaseKeyIndex,
@@ -589,7 +589,7 @@ where
         // `executor` creates a tracked struct `salsa_output_key`,
         // but it did not in the current revision.
         // In that case, we can delete `stale_output_key` and any data associated with it.
-        self.delete_entity(db.as_dyn_database(), stale_output_key.unwrap());
+        self.discard_stale_instance(db.as_dyn_database(), stale_output_key.unwrap());
     }
 
     fn fmt_index(&self, index: Option<crate::Id>, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {

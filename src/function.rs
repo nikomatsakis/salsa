@@ -218,7 +218,7 @@ where
         self.validate_specified_value(db, executor, output_key);
     }
 
-    fn remove_stale_output(
+    fn discard_stale_output(
         &self,
         _db: &dyn Database,
         _executor: DatabaseKeyIndex,

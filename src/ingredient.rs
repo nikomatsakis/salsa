@@ -56,6 +56,9 @@ pub trait Ingredient: Any + std::fmt::Debug + Send + Sync {
     /// Invoked when the value `output_key` should be marked as valid in the current revision.
     /// This occurs because the value for `executor`, which generated it, was marked as valid
     /// in the current revision.
+    ///
+    /// Ingredients that are not targeted as "outputs" of a tracked function
+    /// should not receive this method and so they are implemented with a panic.
     fn mark_validated_output<'db>(
         &'db self,
         db: &'db dyn Database,
@@ -63,11 +66,13 @@ pub trait Ingredient: Any + std::fmt::Debug + Send + Sync {
         output_key: Option<Id>,
     );
 
-    /// Invoked when the value `stale_output` was output by `executor` in a previous
+    /// Invoked when the value `stale_output_key` was output by `executor` in a previous
     /// revision, but was NOT output in the current revision.
-    ///
     /// This hook is used to clear out the stale value so others cannot read it.
-    fn remove_stale_output(
+    ///
+    /// Ingredients that are not targeted as "outputs" of a tracked function
+    /// should not receive this method and so they are implemented with a panic.
+    fn discard_stale_output(
         &self,
         db: &dyn Database,
         executor: DatabaseKeyIndex,

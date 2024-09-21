@@ -71,14 +71,24 @@ where
         _executor: DatabaseKeyIndex,
         _output_key: Option<Id>,
     ) {
+        // instances of this ingredient are not recorded as outputs
+        unreachable!(
+            "unexpected call to `mark_validated_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
-    fn remove_stale_output(
+    fn discard_stale_output(
         &self,
         _db: &dyn Database,
         _executor: DatabaseKeyIndex,
-        _stale_output_key: Option<Id>,
+        _stale_output_key: Option<crate::Id>,
     ) {
+        // instances of this ingredient are not recorded as outputs
+        unreachable!(
+            "unexpected call to `discard_stale_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn requires_reset_for_new_revision(&self) -> bool {
@@ -86,7 +96,11 @@ where
     }
 
     fn reset_for_new_revision(&mut self) {
-        panic!("unexpected call: input fields don't register for resets");
+        // `requires_reset_for_new_revision` returns false, this should not be called
+        unreachable!(
+            "unexpected call to `reset_for_new_revision` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn fmt_index(&self, index: Option<crate::Id>, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {

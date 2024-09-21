@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{ingredient::Ingredient, zalsa::IngredientIndex, Database, Id};
+use crate::{ingredient::Ingredient, zalsa::IngredientIndex, Database, DatabaseKeyIndex, Id};
 
 use super::{Configuration, Value};
 
@@ -75,16 +75,24 @@ where
         _executor: crate::DatabaseKeyIndex,
         _output_key: Option<crate::Id>,
     ) {
-        panic!("tracked field ingredients have no outputs")
+        // instances of this ingredient are not recorded as outputs
+        unreachable!(
+            "unexpected call to `mark_validated_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
-    fn remove_stale_output(
+    fn discard_stale_output(
         &self,
         _db: &dyn Database,
-        _executor: crate::DatabaseKeyIndex,
+        _executor: DatabaseKeyIndex,
         _stale_output_key: Option<crate::Id>,
     ) {
-        panic!("tracked field ingredients have no outputs")
+        // instances of this ingredient are not recorded as outputs
+        unreachable!(
+            "unexpected call to `discard_stale_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn requires_reset_for_new_revision(&self) -> bool {
@@ -92,7 +100,11 @@ where
     }
 
     fn reset_for_new_revision(&mut self) {
-        panic!("tracked field ingredients do not require reset")
+        // `requires_reset_for_new_revision` returns false, this should not be called
+        unreachable!(
+            "unexpected call to `reset_for_new_revision` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn fmt_index(

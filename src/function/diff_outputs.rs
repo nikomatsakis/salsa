@@ -33,11 +33,15 @@ where
         }
 
         for old_output in old_outputs {
-            Self::report_stale_output(db, key, old_output);
+            Self::log_and_discard_stale_output(db, key, old_output);
         }
     }
 
-    fn report_stale_output(db: &C::DbView, key: DatabaseKeyIndex, output: DependencyIndex) {
+    fn log_and_discard_stale_output(
+        db: &C::DbView,
+        key: DatabaseKeyIndex,
+        output: DependencyIndex,
+    ) {
         let db = db.as_dyn_database();
 
         db.salsa_event(&|| Event {
@@ -48,6 +52,6 @@ where
             },
         });
 
-        output.remove_stale_output(db, key);
+        output.discard_stale_output(db, key);
     }
 }

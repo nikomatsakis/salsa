@@ -216,25 +216,27 @@ where
     fn mark_validated_output(
         &self,
         _db: &dyn Database,
-        executor: DatabaseKeyIndex,
-        output_key: Option<crate::Id>,
+        _executor: DatabaseKeyIndex,
+        _output_key: Option<crate::Id>,
     ) {
+        // instances of this ingredient are not recorded as outputs
         unreachable!(
-            "mark_validated_output({:?}, {:?}): input cannot be the output of a tracked function",
-            executor, output_key
-        );
+            "unexpected call to `mark_validated_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
-    fn remove_stale_output(
+    fn discard_stale_output(
         &self,
         _db: &dyn Database,
-        executor: DatabaseKeyIndex,
-        stale_output_key: Option<crate::Id>,
+        _executor: DatabaseKeyIndex,
+        _stale_output_key: Option<crate::Id>,
     ) {
+        // instances of this ingredient are not recorded as outputs
         unreachable!(
-            "remove_stale_output({:?}, {:?}): interned ids are not outputs",
-            executor, stale_output_key
-        );
+            "unexpected call to `discard_stale_output` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn requires_reset_for_new_revision(&self) -> bool {
@@ -242,10 +244,11 @@ where
     }
 
     fn reset_for_new_revision(&mut self) {
-        // Interned ingredients do not, normally, get deleted except when they are "reset" en masse.
-        // There ARE methods (e.g., `clear_deleted_entries` and `remove`) for deleting individual
-        // items, but those are only used for tracked struct ingredients.
-        panic!("unexpected call to `reset_for_new_revision`")
+        // `requires_reset_for_new_revision` returns false, this should not be called
+        unreachable!(
+            "unexpected call to `reset_for_new_revision` on `{}`",
+            std::any::type_name::<Self>()
+        )
     }
 
     fn fmt_index(&self, index: Option<crate::Id>, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
