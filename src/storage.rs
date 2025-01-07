@@ -3,9 +3,7 @@ use std::{marker::PhantomData, panic::RefUnwindSafe, sync::Arc};
 use parking_lot::{Condvar, Mutex};
 
 use crate::{
-    zalsa::{Zalsa, ZalsaDatabase},
-    zalsa_local::{self, ZalsaLocal},
-    Database, Event, EventKind,
+    plumbing::Jar, zalsa::{Zalsa, ZalsaDatabase}, zalsa_local::{self, ZalsaLocal}, Database, Event, EventKind
 };
 
 /// Access the "storage" of a Salsa database: this is an internal plumbing trait
@@ -20,8 +18,43 @@ pub unsafe trait HasStorage: Database + Clone + Sized {
     fn storage_mut(&mut self) -> &mut Storage<Self>;
 }
 
+/// Customized creation of store to allow for e.g. serialization.
+pub struct StorageBuilder<Db: Database> {
+    storage: Storage<Db>,
+}
+
+impl<Db: Database> StorageBuilder<Db> {
+    pub fn new() -> Self {
+        Self {
+            storage: Storage::default(),
+        }
+    }
+
+    /// Record the salsa definition `D` as serializable.
+    /// This is typically a salsa struct type created by e.g. [`salsa::input`](`crate::input`)
+    /// or a tracked function type.
+    pub fn serializable<D: SalsaDefinition>(self) -> Self {
+        let ingredient_index = self.storage.zalsa_impl.add_or_lookup_jar_by_type(&*D::jar());
+        self.storage.zalsa_impl.add_serializable_ingredient(ingredient_index);
+        self
+    }
+
+    /// Create the storage, ready for use.
+    pub fn build(self) -> Storage<Db> {
+        self.storage
+    }
+}
+
+/// Implemented by salsa struct types (tracked, inputs, etc) as well as tracked function types and accumulators.
+/// Used to mark serializable types (see [`StorageBuilder::serializable`]).
+pub trait SalsaDefinition {
+    fn jar() -> Box<dyn Jar>;
+}
+
 /// Concrete implementation of the [`Database`][] trait.
 /// Takes an optional type parameter `U` that allows you to thread your own data.
+/// 
+/// To support serialization, you will want to use [`StorageBuilder`][].
 pub struct Storage<Db: Database> {
     // Note: Drop order is important, zalsa_impl needs to drop before coordinate
     /// Reference to the database.

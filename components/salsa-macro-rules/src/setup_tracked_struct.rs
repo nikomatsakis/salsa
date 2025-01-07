@@ -58,6 +58,7 @@ macro_rules! setup_tracked_struct {
             $Db:ident,
             $NonNull:ident,
             $Revision:ident,
+            $JarType:ident,
         ]
     ) => {
         $(#[$attr])*
@@ -129,12 +130,20 @@ macro_rules! setup_tracked_struct {
                 }
             }
 
+            type $JarType = $zalsa_struct::JarImpl<$Configuration>;
+
+            impl salsa::SalsaDefinition for $Struct<'_> {
+                fn jar() -> Box<dyn $zalsa::Jar> {
+                    Box::new($JarType::default())
+                }
+            }
+
             impl $Configuration {
                 pub fn ingredient(db: &dyn $zalsa::Database) -> &$zalsa_struct::IngredientImpl<$Configuration> {
                     static CACHE: $zalsa::IngredientCache<$zalsa_struct::IngredientImpl<$Configuration>> =
                         $zalsa::IngredientCache::new();
                     CACHE.get_or_create(db, || {
-                        db.zalsa().add_or_lookup_jar_by_type(&<$zalsa_struct::JarImpl::<$Configuration>>::default())
+                        db.zalsa().add_or_lookup_jar_by_type(&$JarType::default())
                     })
                 }
             }

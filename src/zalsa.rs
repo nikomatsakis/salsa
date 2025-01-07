@@ -123,6 +123,11 @@ pub struct Zalsa {
 
     nonce: Nonce<StorageNonce>,
 
+    /// List of ingredients that were marked as serializable.
+    /// These will always be the first ingredients created because they must be added by
+    /// [`StorageBuilder::serializable`](`crate::storage::StorageBuilder::serializable`).
+    serializable_ingredients: Mutex<Vec<IngredientIndex>>,
+
     /// Map from the [`IngredientIndex::as_usize`][] of a salsa struct to a list of
     /// [ingredient-indices](`IngredientIndex`) for tracked functions that have this salsa struct
     /// as input.
@@ -153,6 +158,7 @@ impl Zalsa {
     pub(crate) fn new<Db: Database>() -> Self {
         Self {
             views_of: Views::new::<Db>(),
+            serializable_ingredients: Default::default(),
             nonce: NONCE.nonce(),
             jar_map: Default::default(),
             ingredients_vec: AppendOnlyVec::new(),
@@ -160,6 +166,17 @@ impl Zalsa {
             runtime: Runtime::default(),
             memo_ingredient_indices: Default::default(),
         }
+    }
+
+    /// Add an ingredient index to the list of serializable ingredients.
+    /// Invoked only from [`StorageBuilder::serializable`](`crate::storage::StorageBuilder::serializable`).
+    pub(crate) fn add_serializable_ingredient(&self, ingredient_index: IngredientIndex) {
+        self.serializable_ingredients.lock().push(ingredient_index);
+    }
+
+    /// Returns `true` if the ingredient with the given index was added as serializable.
+    pub(crate) fn is_serializable_ingredient(&self, ingredient_index: IngredientIndex) -> bool {
+        self.serializable_ingredients.lock().contains(&ingredient_index)
     }
 
     pub(crate) fn views(&self) -> &Views {

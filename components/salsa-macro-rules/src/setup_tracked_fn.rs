@@ -196,6 +196,12 @@ macro_rules! setup_tracked_fn {
                 }
             }
 
+            impl salsa::SalsaDefinition for $fn_name {
+                fn jar() -> Box<dyn $zalsa::Jar> {
+                    Box::new($Configuration)
+                }
+            }
+
             impl $zalsa::Jar for $Configuration {
                 fn create_ingredients(
                     &self,

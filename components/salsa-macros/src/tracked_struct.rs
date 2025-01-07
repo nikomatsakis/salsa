@@ -95,6 +95,7 @@ impl Macro {
         let Db = self.hygiene.ident("Db");
         let NonNull = self.hygiene.ident("NonNull");
         let Revision = self.hygiene.ident("Revision");
+        let JarType = self.hygiene.ident("JarType");
 
         Ok(crate::debug::dump_tokens(
             struct_ident,
@@ -121,6 +122,7 @@ impl Macro {
                         #Db,
                         #NonNull,
                         #Revision,
+                        #JarType,
                     ]
                 );
             },

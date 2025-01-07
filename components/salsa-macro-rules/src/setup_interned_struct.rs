@@ -50,6 +50,7 @@ macro_rules! setup_interned_struct {
             $Configuration:ident,
             $CACHE:ident,
             $Db:ident,
+            $JarType:ident,
         ]
     ) => {
         $(#[$attr])*
@@ -111,6 +112,14 @@ macro_rules! setup_interned_struct {
                 }
             }
 
+            type $JarType = $zalsa_struct::JarImpl<$Configuration>;
+
+            impl salsa::SalsaDefinition for $Struct<'_> {
+                fn jar() -> Box<dyn $zalsa::Jar> {
+                    Box::new($JarType::default())
+                }
+            }
+
             impl $Configuration {
                 pub fn ingredient<Db>(db: &Db) -> &$zalsa_struct::IngredientImpl<Self>
                 where
@@ -119,7 +128,7 @@ macro_rules! setup_interned_struct {
                     static CACHE: $zalsa::IngredientCache<$zalsa_struct::IngredientImpl<$Configuration>> =
                         $zalsa::IngredientCache::new();
                     CACHE.get_or_create(db.as_dyn_database(), || {
-                        db.zalsa().add_or_lookup_jar_by_type(&<$zalsa_struct::JarImpl<$Configuration>>::default())
+                        db.zalsa().add_or_lookup_jar_by_type(&$JarType::default())
                     })
                 }
             }

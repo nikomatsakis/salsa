@@ -57,6 +57,7 @@ macro_rules! setup_input_struct {
             $Builder:ident,
             $CACHE:ident,
             $Db:ident,
+            $JarType:ident,
         ]
     ) => {
         $(#[$attr])*
@@ -84,18 +85,26 @@ macro_rules! setup_input_struct {
                 type Stamps = $zalsa::Array<$zalsa::Stamp, $N>;
             }
 
+            type $JarType = $zalsa_struct::JarImpl<$Configuration>;
+
+            impl salsa::SalsaDefinition for $Struct {
+                fn jar() -> Box<dyn $zalsa::Jar> {
+                    Box::new($JarType::default())
+                }
+            }
+
             impl $Configuration {
                 pub fn ingredient(db: &dyn $zalsa::Database) -> &$zalsa_struct::IngredientImpl<Self> {
                     static CACHE: $zalsa::IngredientCache<$zalsa_struct::IngredientImpl<$Configuration>> =
                         $zalsa::IngredientCache::new();
                     CACHE.get_or_create(db, || {
-                        db.zalsa().add_or_lookup_jar_by_type(&<$zalsa_struct::JarImpl<$Configuration>>::default())
+                        db.zalsa().add_or_lookup_jar_by_type(&$JarType::default())
                     })
                 }
 
                 pub fn ingredient_mut(db: &mut dyn $zalsa::Database) -> (&mut $zalsa_struct::IngredientImpl<Self>, &mut $zalsa::Runtime) {
                     let zalsa_mut = db.zalsa_mut();
-                    let index = zalsa_mut.add_or_lookup_jar_by_type(&<$zalsa_struct::JarImpl<$Configuration>>::default());
+                    let index = zalsa_mut.add_or_lookup_jar_by_type(&$JarType::default());
                     let current_revision = zalsa_mut.current_revision();
                     let (ingredient, runtime) = zalsa_mut.lookup_ingredient_mut(index);
                     let ingredient = ingredient.assert_type_mut::<$zalsa_struct::IngredientImpl<Self>>();
@@ -216,6 +225,7 @@ macro_rules! setup_input_struct {
                             .finish()
                     })
                 }
+
             }
 
             impl $zalsa_struct::HasBuilder for $Struct {
