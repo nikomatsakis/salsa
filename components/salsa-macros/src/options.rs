@@ -66,6 +66,12 @@ pub(crate) struct Options<A: AllowedOptions> {
     /// If this is `Some`, the value is the `<ident>`.
     pub constructor_name: Option<syn::Ident>,
 
+    /// The `serialize` option generates code to serialize the
+    /// contents of this struct.
+    ///
+    /// If this is `Some`, the value is the `serialize` identifier.
+    pub serialize: Option<syn::Ident>,
+
     /// Remember the `A` parameter, which plays no role after parsing.
     phantom: PhantomData<A>,
 }
@@ -102,6 +108,7 @@ pub(crate) trait AllowedOptions {
     const RECOVERY_FN: bool;
     const LRU: bool;
     const CONSTRUCTOR_NAME: bool;
+    const SERIALIZE: bool;
 }
 
 type Equals = syn::Token![=];
@@ -267,6 +274,23 @@ impl<A: AllowedOptions> syn::parse::Parse for Options<A> {
                         "`constructor` option not allowed here",
                     ));
                 }
+            } else if ident == "serialize" {
+                if A::SERIALIZE {
+                    let _eq = Equals::parse(input)?;
+                    let ident = syn::Ident::parse(input)?;
+                    if let Some(old) = std::mem::replace(&mut options.serialize, Some(ident))
+                    {
+                        return Err(syn::Error::new(
+                            old.span(),
+                            "option `serialize` provided twice",
+                        ));
+                    }
+                } else {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        "`serialize` option not allowed here",
+                    ));
+                } 
             } else {
                 return Err(syn::Error::new(
                     ident.span(),

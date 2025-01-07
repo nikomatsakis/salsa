@@ -55,6 +55,8 @@ impl crate::options::AllowedOptions for InputStruct {
     const LRU: bool = false;
 
     const CONSTRUCTOR_NAME: bool = true;
+
+    const SERIALIZE: bool = true;
 }
 
 impl SalsaStructAllowedOptions for InputStruct {
@@ -94,6 +96,7 @@ impl Macro {
         let field_durability_ids = salsa_struct.field_durability_ids();
         let is_singleton = self.args.singleton.is_some();
         let generate_debug_impl = salsa_struct.generate_debug_impl();
+        let is_serialize = self.args.serialize.is_some();
 
         let zalsa = self.hygiene.ident("zalsa");
         let zalsa_struct = self.hygiene.ident("zalsa_struct");
@@ -121,6 +124,7 @@ impl Macro {
                     field_durability_ids: [#(#field_durability_ids),*],
                     num_fields: #num_fields,
                     is_singleton: #is_singleton,
+                    is_serialize: #is_serialize,
                     generate_debug_impl: #generate_debug_impl,
                     unused_names: [
                         #zalsa,
