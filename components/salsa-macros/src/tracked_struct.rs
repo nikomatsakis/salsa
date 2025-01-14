@@ -50,6 +50,8 @@ impl crate::options::AllowedOptions for TrackedStruct {
     const LRU: bool = false;
 
     const CONSTRUCTOR_NAME: bool = true;
+
+    const SERIALIZE: bool = true;
 }
 
 impl SalsaStructAllowedOptions for TrackedStruct {
